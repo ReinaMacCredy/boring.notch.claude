@@ -389,7 +389,7 @@ struct ContentView: View {
                           }
                       }
 
-                      // Permission drop-down pill banner
+                      // Permission drop-down banner -- same width as the notch
                       if vm.notchState == .closed && !claudeSessionMonitor.pendingInstances.isEmpty {
                           PermissionBannerView(
                               sessionMonitor: claudeSessionMonitor,
@@ -400,7 +400,8 @@ struct ContentView: View {
                                   }
                               }
                           )
-                          .padding(.top, 4)
+                          .frame(width: computedChinWidth)
+                          .padding(.top, 2)
                       }
                   }
               }

@@ -1024,7 +1024,7 @@ struct Shelf: View {
 }
 
 struct ClaudeCodeSettings: View {
-    @ObservedObject var claudeCodeManager = ClaudeCodeManager.shared
+    @StateObject private var sessionMonitor = ClaudeSessionMonitor()
     @Default(.enableClaudeCode) var enableClaudeCode
 
     var body: some View {
@@ -1048,9 +1048,9 @@ struct ClaudeCodeSettings: View {
 
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Show session dots in closed notch")
+                        Text("Show activity in closed notch")
                             .font(.headline)
-                        Text("Display session status dots below the notch when closed.")
+                        Text("Display Claude Code activity indicator when the notch is closed.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -1062,34 +1062,48 @@ struct ClaudeCodeSettings: View {
                         .controlSize(.large)
                         .disabled(!enableClaudeCode)
                 }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Hooks")
+                            .font(.headline)
+                        Text("Install Claude Code hooks for real-time session monitoring.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 40)
+                    Button(HookInstaller.isInstalled() ? "Uninstall" : "Install") {
+                        if HookInstaller.isInstalled() {
+                            HookInstaller.uninstall()
+                        } else {
+                            HookInstaller.installIfNeeded()
+                        }
+                    }
+                    .disabled(!enableClaudeCode)
+                }
             } header: {
                 Text("General")
-            } footer: {
-                Text("Session dots show the status of active Claude Code sessions. Tap a dot to focus the corresponding IDE.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Section {
                 HStack {
                     Text("Active sessions")
                     Spacer()
-                    Text("\(claudeCodeManager.availableSessions.count)")
+                    Text("\(sessionMonitor.instances.count)")
                         .foregroundStyle(.secondary)
                 }
 
-                if !claudeCodeManager.availableSessions.isEmpty {
-                    ForEach(claudeCodeManager.availableSessions) { session in
-                        HStack {
-                            Circle()
-                                .fill(sessionColor(for: session))
-                                .frame(width: 8, height: 8)
-                            Text(session.displayName)
-                            Spacer()
-                            Text(session.ideName)
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
+                ForEach(sessionMonitor.instances) { instance in
+                    HStack {
+                        Circle()
+                            .fill(phaseColor(instance.phase))
+                            .frame(width: 8, height: 8)
+                        Text(instance.displayTitle)
+                        Spacer()
+                        Text(phaseLabel(instance.phase))
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
                     }
                 }
             } header: {
@@ -1098,18 +1112,26 @@ struct ClaudeCodeSettings: View {
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Claude Code")
+        .onAppear {
+            sessionMonitor.startMonitoring()
+        }
     }
 
-    private func sessionColor(for session: ClaudeSession) -> Color {
-        guard let state = claudeCodeManager.sessionStates[session.id] else {
-            return .gray
-        }
-        if state.needsPermission {
-            return .orange
-        } else if state.isActive {
-            return .green
-        }
+    private func phaseColor(_ phase: SessionPhase) -> Color {
+        if phase.isWaitingForApproval { return .orange }
+        if phase.isActive { return .green }
         return .gray
+    }
+
+    private func phaseLabel(_ phase: SessionPhase) -> String {
+        switch phase {
+        case .idle: return "Idle"
+        case .processing: return "Processing"
+        case .waitingForInput: return "Ready"
+        case .waitingForApproval: return "Needs approval"
+        case .compacting: return "Compacting"
+        case .ended: return "Ended"
+        }
     }
 }
 

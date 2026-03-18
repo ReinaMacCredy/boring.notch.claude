@@ -80,8 +80,14 @@ struct ContentView: View {
             && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView]
             && !claudeSessionMonitor.instances.isEmpty && !vm.hideOnClosed
         {
-            // Claude Code compact view - no side extension needed
-            // chinWidth stays at vm.closedNotchSize.width (default)
+            // Claude Code: expand sides when any session has activity
+            let hasActivity = claudeSessionMonitor.instances.contains {
+                $0.phase == .processing || $0.phase == .compacting ||
+                $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
+            }
+            if hasActivity {
+                chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
+            }
         }
 
         return chinWidth
@@ -305,9 +311,11 @@ struct ContentView: View {
                           MusicLiveActivity()
                               .frame(alignment: .center)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && !claudeSessionMonitor.instances.isEmpty && !vm.hideOnClosed {
-                          // Claude Code: subtle dot below notch, matching original boring.notch idle sizing
-                          Rectangle().fill(.clear)
-                              .frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
+                          ClaudeClosedView(
+                              sessionMonitor: claudeSessionMonitor,
+                              closedNotchSize: vm.closedNotchSize,
+                              effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
+                          )
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {

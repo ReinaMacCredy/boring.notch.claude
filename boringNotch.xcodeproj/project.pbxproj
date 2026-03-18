@@ -187,6 +187,7 @@
 		D64F28EF0F1510EFC5A5EB46 /* TerminalVisibilityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F6A18794702F0753FEF2578 /* TerminalVisibilityDetector.swift */; };
 		D7B84A2E4CEE164D269E7209 /* ProcessTreeBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57FE3F3231DEEF9392298618 /* ProcessTreeBuilder.swift */; };
 		DC75B84BD44EE89B44AF5EE7 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D157E8CB9FDEFC524DC31456 /* ChatView.swift */; };
+		DF299218976A8410F666F792 /* ClaudeClosedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D020A3479D506C0CF12808F5 /* ClaudeClosedView.swift */; };
 		E3BD60518E8FCE53027E8F29 /* AgentFileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7DED90D78274B921E339DC /* AgentFileWatcher.swift */; };
 		E6107F9C4051008D45F282FD /* TmuxTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 047447C72C974E5054A5C60C /* TmuxTarget.swift */; };
 		EA828BAD54DEE660E4071B01 /* ScreenSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39A0FED4E2FD42591F05FE0B /* ScreenSelector.swift */; };
@@ -408,6 +409,7 @@
 		CD78F02925AD844BF1A1E6CC /* YabaiController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YabaiController.swift; sourceTree = "<group>"; };
 		CE818EA47ACC2DADC6EC5A76 /* ClaudeSessionMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeSessionMonitor.swift; sourceTree = "<group>"; };
 		CF93A9BB433F0D32599379F9 /* HookInstaller.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HookInstaller.swift; sourceTree = "<group>"; };
+		D020A3479D506C0CF12808F5 /* ClaudeClosedView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeClosedView.swift; sourceTree = "<group>"; };
 		D157E8CB9FDEFC524DC31456 /* ChatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		D82D951C0062E294B10875E6 /* StatusIcons.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StatusIcons.swift; sourceTree = "<group>"; };
 		D954B352E8954CFB251B9F3E /* ActionButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActionButton.swift; sourceTree = "<group>"; };
@@ -1009,6 +1011,7 @@
 				4B395F62180D7B86605E682D /* ToolResultViews.swift */,
 				AA8A60393A9BA048B0A37833 /* ClaudeMenuView.swift */,
 				93F23B6E15D916B9A1B35D86 /* ClaudeCodeTabView.swift */,
+				D020A3479D506C0CF12808F5 /* ClaudeClosedView.swift */,
 			);
 			path = ClaudeCode;
 			sourceTree = "<group>";
@@ -1381,6 +1384,7 @@
 				A232C3A9A7ABD7DE283024FA /* MCPToolFormatter.swift in Sources */,
 				D64F28EF0F1510EFC5A5EB46 /* TerminalVisibilityDetector.swift in Sources */,
 				7826C32E4F48F37FAC51D24D /* RealHomeDirectory.swift in Sources */,
+				DF299218976A8410F666F792 /* ClaudeClosedView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

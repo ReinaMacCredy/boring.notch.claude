@@ -65,9 +65,19 @@ struct ClaudeClosedView: View {
     var body: some View {
         HStack(spacing: 0) {
             if showActivity {
-                // Left: crab + optional permission indicator
-                HStack(spacing: 4) {
+                // Left side: crab + dots + optional permission indicator
+                // All positioned in the left expansion area, outside the physical notch
+                HStack(spacing: 6) {
                     ClaudeCrabIcon(size: 14, animateLegs: isAnyProcessing)
+
+                    // Per-session dots
+                    HStack(spacing: 4) {
+                        ForEach(sessionMonitor.instances.prefix(5)) { session in
+                            Circle()
+                                .fill(dotColor(for: session.phase))
+                                .frame(width: 6, height: 6)
+                        }
+                    }
 
                     if hasPendingPermission {
                         PermissionIndicatorIcon(
@@ -76,18 +86,8 @@ struct ClaudeClosedView: View {
                         )
                     }
                 }
-                .frame(width: sideWidth + (hasPendingPermission ? 18 : 0))
 
-                // Per-session dots: one dot per session, colored by phase
-                HStack(spacing: 4) {
-                    ForEach(sessionMonitor.instances.prefix(5)) { session in
-                        Circle()
-                            .fill(dotColor(for: session.phase))
-                            .frame(width: 6, height: 6)
-                    }
-                }
-
-                // Center: black spacer (expands briefly on bounce)
+                // Center: black spacer covering the physical notch area
                 Rectangle()
                     .fill(.black)
                     .frame(width: closedNotchSize.width - cornerRadiusInsets.closed.top + (isBouncing ? 16 : 0))

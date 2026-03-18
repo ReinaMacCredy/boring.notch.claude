@@ -90,7 +90,7 @@ struct ContentView: View {
                 $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
             }
             if hasActivity {
-                let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 5))
+                let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 3))
                 // Left: crab(24) + dots(10 each) + spacing(8)
                 let leftWidth: CGFloat = 24 + (dotCount * 10) + 8
                 // Right: spinner/checkmark

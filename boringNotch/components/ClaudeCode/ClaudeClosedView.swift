@@ -72,7 +72,7 @@ struct ClaudeClosedView: View {
 
                     // Per-session dots
                     HStack(spacing: 4) {
-                        ForEach(sessionMonitor.instances.prefix(5)) { session in
+                        ForEach(sessionMonitor.instances.prefix(3)) { session in
                             Circle()
                                 .fill(dotColor(for: session.phase))
                                 .frame(width: 6, height: 6)

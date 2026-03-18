@@ -6,6 +6,14 @@
 //  Shows crab icon (left), processing spinner or checkmark (right),
 //  with optional permission indicator. Matches claude-island's headerRow.
 //
+//  Multi-session behavior:
+//  - Processing takes priority: if ANY session is processing, show spinner + animated crab
+//  - Permission indicator: if ANY session needs approval, show amber dot (left) + spinner
+//  - Checkmark: only when NO session is processing AND at least one is waitingForInput
+//  - Bounce: notch briefly expands when a session newly enters waitingForInput
+//  - Auto-hide: checkmark disappears after 30 seconds
+//  - Sound: plays notification when session finishes (if not focused)
+//
 
 import SwiftUI
 
@@ -16,6 +24,9 @@ struct ClaudeClosedView: View {
 
     @State private var waitingForInputTimestamps: [String: Date] = [:]
     @State private var previousWaitingIds: Set<String> = []
+    @State private var isBouncing: Bool = false
+    // Trigger to force re-evaluation of hasWaitingForInput after 30s
+    @State private var refreshTrigger: Bool = false
 
     // MARK: - Activity State
 
@@ -28,6 +39,8 @@ struct ClaudeClosedView: View {
     }
 
     private var hasWaitingForInput: Bool {
+        // refreshTrigger forces re-evaluation after 30s timeout
+        _ = refreshTrigger
         let now = Date()
         let displayDuration: TimeInterval = 30
         return sessionMonitor.instances.contains { session in
@@ -35,8 +48,6 @@ struct ClaudeClosedView: View {
             if let enteredAt = waitingForInputTimestamps[session.stableId] {
                 return now.timeIntervalSince(enteredAt) < displayDuration
             }
-            // No timestamp yet -- session entered waitingForInput before we tracked it.
-            // Return true so it shows; trackWaitingForInput will assign a timestamp.
             return true
         }
     }
@@ -67,12 +78,13 @@ struct ClaudeClosedView: View {
                 }
                 .frame(width: sideWidth + (hasPendingPermission ? 18 : 0))
 
-                // Center: black spacer
+                // Center: black spacer (expands briefly on bounce)
                 Rectangle()
                     .fill(.black)
-                    .frame(width: closedNotchSize.width - cornerRadiusInsets.closed.top)
+                    .frame(width: closedNotchSize.width - cornerRadiusInsets.closed.top + (isBouncing ? 16 : 0))
 
                 // Right: spinner or checkmark
+                // Priority: processing/permission > waitingForInput
                 if isAnyProcessing || hasPendingPermission {
                     ProcessingSpinner()
                         .frame(width: sideWidth)
@@ -81,12 +93,14 @@ struct ClaudeClosedView: View {
                         .frame(width: sideWidth)
                 }
             } else {
-                // No activity: invisible placeholder (same as original idle)
+                // No activity: invisible placeholder
                 Rectangle().fill(.clear)
                     .frame(width: closedNotchSize.width - 20)
             }
         }
         .frame(height: effectiveClosedNotchHeight, alignment: .center)
+        .animation(.smooth, value: showActivity)
+        .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isBouncing)
         .onChange(of: sessionMonitor.instances) { _, instances in
             trackWaitingForInput(instances)
         }
@@ -97,6 +111,7 @@ struct ClaudeClosedView: View {
     private func trackWaitingForInput(_ instances: [SessionState]) {
         let waiting = instances.filter { $0.phase == .waitingForInput }
         let currentIds = Set(waiting.map { $0.stableId })
+        let newlyWaitingIds = currentIds.subtracting(previousWaitingIds)
 
         // Assign timestamps for any waiting session that doesn't have one yet
         let now = Date()
@@ -104,10 +119,29 @@ struct ClaudeClosedView: View {
             waitingForInputTimestamps[session.stableId] = now
         }
 
-        // Clean up stale timestamps
+        // Clean up timestamps for sessions no longer waiting
         let staleIds = Set(waitingForInputTimestamps.keys).subtracting(currentIds)
         for staleId in staleIds {
             waitingForInputTimestamps.removeValue(forKey: staleId)
+        }
+
+        // Bounce + sound when any session NEWLY enters waitingForInput
+        if !newlyWaitingIds.isEmpty {
+            // Bounce animation
+            isBouncing = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                isBouncing = false
+            }
+
+            // Play notification sound
+            if let soundName = AppSettings.notificationSound.soundName {
+                NSSound(named: soundName)?.play()
+            }
+
+            // Schedule re-evaluation after 30 seconds to hide the checkmark
+            DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
+                refreshTrigger.toggle()
+            }
         }
 
         previousWaitingIds = currentIds

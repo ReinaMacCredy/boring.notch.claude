@@ -27,7 +27,7 @@ struct PermissionBannerView: View {
                         .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.0))
 
                     Text(toolDescription(for: session))
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -40,9 +40,9 @@ struct PermissionBannerView: View {
                     onFocus(session)
                 } label: {
                     Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.white.opacity(0.5))
-                        .frame(width: 22, height: 18)
+                        .frame(width: 28, height: 24)
                         .background(Color.white.opacity(0.08))
                         .clipShape(Capsule())
                 }
@@ -53,10 +53,10 @@ struct PermissionBannerView: View {
                     sessionMonitor.denyPermission(sessionId: session.sessionId, reason: nil)
                 } label: {
                     Text("Deny")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.white.opacity(0.5))
                         .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .padding(.vertical, 5)
                         .background(Color.white.opacity(0.08))
                         .clipShape(Capsule())
                 }
@@ -67,18 +67,17 @@ struct PermissionBannerView: View {
                     sessionMonitor.approvePermission(sessionId: session.sessionId)
                 } label: {
                     Text("Allow")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.black)
                         .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .padding(.vertical, 5)
                         .background(Color.white.opacity(0.85))
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .transition(.opacity.combined(with: .move(edge: .top)))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
     }
 

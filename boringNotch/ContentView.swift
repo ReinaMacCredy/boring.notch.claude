@@ -401,7 +401,14 @@ struct ContentView: View {
                               }
                           )
                           .frame(width: computedChinWidth)
-                          .padding(.top, 2)
+                          .padding(.top, 4)
+                          .transition(
+                              .asymmetric(
+                                  insertion: .move(edge: .top).combined(with: .opacity),
+                                  removal: .move(edge: .top).combined(with: .opacity)
+                              )
+                          )
+                          .animation(.spring(response: 0.35, dampingFraction: 0.8), value: claudeSessionMonitor.pendingInstances.count)
                       }
                   }
               }

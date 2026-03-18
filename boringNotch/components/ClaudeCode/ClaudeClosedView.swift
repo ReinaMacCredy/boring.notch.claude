@@ -35,7 +35,9 @@ struct ClaudeClosedView: View {
             if let enteredAt = waitingForInputTimestamps[session.stableId] {
                 return now.timeIntervalSince(enteredAt) < displayDuration
             }
-            return false
+            // No timestamp yet -- session entered waitingForInput before we tracked it.
+            // Return true so it shows; trackWaitingForInput will assign a timestamp.
+            return true
         }
     }
 
@@ -95,10 +97,10 @@ struct ClaudeClosedView: View {
     private func trackWaitingForInput(_ instances: [SessionState]) {
         let waiting = instances.filter { $0.phase == .waitingForInput }
         let currentIds = Set(waiting.map { $0.stableId })
-        let newIds = currentIds.subtracting(previousWaitingIds)
 
+        // Assign timestamps for any waiting session that doesn't have one yet
         let now = Date()
-        for session in waiting where newIds.contains(session.stableId) {
+        for session in waiting where waitingForInputTimestamps[session.stableId] == nil {
             waitingForInputTimestamps[session.stableId] = now
         }
 

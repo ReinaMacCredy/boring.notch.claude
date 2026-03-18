@@ -388,6 +388,20 @@ struct ContentView: View {
                               }
                           }
                       }
+
+                      // Permission drop-down pill banner
+                      if vm.notchState == .closed && !claudeSessionMonitor.pendingInstances.isEmpty {
+                          PermissionBannerView(
+                              sessionMonitor: claudeSessionMonitor,
+                              onFocus: { session in
+                                  guard session.isInTmux, let pid = session.pid else { return }
+                                  Task {
+                                      _ = await YabaiController.shared.focusWindow(forClaudePid: pid)
+                                  }
+                              }
+                          )
+                          .padding(.top, 4)
+                      }
                   }
               }
               .conditionalModifier((coordinator.sneakPeek.show && (coordinator.sneakPeek.type == .music) && vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard) || (coordinator.sneakPeek.show && (coordinator.sneakPeek.type != .music) && (vm.notchState == .closed))) { view in

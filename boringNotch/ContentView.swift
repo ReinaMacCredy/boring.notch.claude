@@ -84,16 +84,18 @@ struct ContentView: View {
             && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView]
             && !claudeSessionMonitor.instances.isEmpty && !vm.hideOnClosed
         {
-            // Claude Code: expand sides for crab + dots + spinner/checkmark
+            // Claude Code: expand for crab + dots (left) + spinner (right)
             let hasActivity = claudeSessionMonitor.instances.contains {
                 $0.phase == .processing || $0.phase == .compacting ||
                 $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
             }
             if hasActivity {
-                // Base expansion + extra width for session dots (10px per dot)
-                let dotCount = min(claudeSessionMonitor.instances.count, 5)
-                let dotsWidth = CGFloat(dotCount) * 10
-                chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20 + dotsWidth)
+                let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 5))
+                // Left: crab(24) + dots(10 each) + spacing(8)
+                let leftWidth: CGFloat = 24 + (dotCount * 10) + 8
+                // Right: spinner/checkmark
+                let rightWidth: CGFloat = max(0, vm.effectiveClosedNotchHeight - 12) + 10
+                chinWidth += leftWidth + rightWidth
             }
         }
 

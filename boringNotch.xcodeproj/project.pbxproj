@@ -137,6 +137,7 @@
 		721BBEE16E537C4E510FC173 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD319648E8F8CE6ACF92580 /* Settings.swift */; };
 		74E3FD57DBD358A5940C07B2 /* ClaudeMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA8A60393A9BA048B0A37833 /* ClaudeMenuView.swift */; };
 		781E47EA22AF7B4A03BED76C /* ToolApprovalHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86D977A40170213F1D3E1C4B /* ToolApprovalHandler.swift */; };
+		7826C32E4F48F37FAC51D24D /* RealHomeDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E049FF511558D2979897469 /* RealHomeDirectory.swift */; };
 		78627C030EDBB5065F688C39 /* ChatHistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABEC2FDECE06A08CF212ABC6 /* ChatHistoryManager.swift */; };
 		7CCD42D581E3FFD1CB85C1CB /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 698871A5501D1693E6F6F1D0 /* SessionStore.swift */; };
 		7E553B35D43F2A9F84781265 /* JSONLInterruptWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = C88D76019CC116E08F03D9B4 /* JSONLInterruptWatcher.swift */; };
@@ -235,6 +236,7 @@
 		0101A7FD167DF7FD437D1B15 /* TmuxTargetFinder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TmuxTargetFinder.swift; sourceTree = "<group>"; };
 		013FCDD4CB7FE3431C35EF26 /* TmuxController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TmuxController.swift; sourceTree = "<group>"; };
 		047447C72C974E5054A5C60C /* TmuxTarget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TmuxTarget.swift; sourceTree = "<group>"; };
+		0E049FF511558D2979897469 /* RealHomeDirectory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RealHomeDirectory.swift; sourceTree = "<group>"; };
 		1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSItemProvider+LoadHelpers.swift"; sourceTree = "<group>"; };
 		110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryFileStorageService.swift; sourceTree = "<group>"; };
 		110029292E8691B400035A57 /* FileShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileShareView.swift; sourceTree = "<group>"; };
@@ -825,6 +827,7 @@
 				5AFC2C8B02940BA29874EE86 /* SessionPhaseHelpers.swift */,
 				1F1823D784899D7E356B3BC0 /* MCPToolFormatter.swift */,
 				5F6A18794702F0753FEF2578 /* TerminalVisibilityDetector.swift */,
+				0E049FF511558D2979897469 /* RealHomeDirectory.swift */,
 			);
 			name = utilities;
 			path = utilities;
@@ -1377,6 +1380,7 @@
 				B5C3233B48AF165B8EA8BE2F /* SessionPhaseHelpers.swift in Sources */,
 				A232C3A9A7ABD7DE283024FA /* MCPToolFormatter.swift in Sources */,
 				D64F28EF0F1510EFC5A5EB46 /* TerminalVisibilityDetector.swift in Sources */,
+				7826C32E4F48F37FAC51D24D /* RealHomeDirectory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -9,7 +9,8 @@ import os
 import socket
 import sys
 
-SOCKET_PATH = "/tmp/claude-island.sock"
+SOCKET_HOST = "127.0.0.1"
+SOCKET_PORT = 22849
 TIMEOUT_SECONDS = 300  # 5 minutes for permission decisions
 
 
@@ -52,9 +53,9 @@ def get_tty():
 def send_event(state):
     """Send event to app, return response if any"""
     try:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(TIMEOUT_SECONDS)
-        sock.connect(SOCKET_PATH)
+        sock.connect((SOCKET_HOST, SOCKET_PORT))
         sock.sendall(json.dumps(state).encode())
 
         # For permission requests, wait for response

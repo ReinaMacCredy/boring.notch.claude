@@ -278,7 +278,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(screenConfigurationDidChange),
@@ -420,10 +419,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupDragDetectors()
 
-        // Claude Code: install hooks and start session monitoring
-        if Defaults[.enableClaudeCode] {
-            HookInstaller.installIfNeeded()
-        }
+        // Claude Code: start socket server at launch for session detection
+        HookSocketServer.shared.start(
+            onEvent: { event in
+                Task {
+                    await SessionStore.shared.process(.hookReceived(event))
+                }
+                if event.event == "Stop" {
+                    HookSocketServer.shared.cancelPendingPermissions(sessionId: event.sessionId)
+                }
+                if event.event == "PostToolUse", let toolUseId = event.toolUseId {
+                    HookSocketServer.shared.cancelPendingPermission(toolUseId: toolUseId)
+                }
+            },
+            onPermissionFailure: { sessionId, toolUseId in
+                Task {
+                    await SessionStore.shared.process(
+                        .permissionSocketFailed(sessionId: sessionId, toolUseId: toolUseId)
+                    )
+                }
+            }
+        )
 
         if coordinator.firstLaunch {
             DispatchQueue.main.async {

@@ -11,7 +11,7 @@ struct HookInstaller {
 
     /// Install hook script and update settings.json on app launch
     static func installIfNeeded() {
-        let claudeDir = FileManager.default.homeDirectoryForCurrentUser
+        let claudeDir = URL(fileURLWithPath: realHomeDirectory())
             .appendingPathComponent(".claude")
         let hooksDir = claudeDir.appendingPathComponent("hooks")
         let pythonScript = hooksDir.appendingPathComponent("claude-island-state.py")
@@ -100,7 +100,7 @@ struct HookInstaller {
 
     /// Check if hooks are currently installed
     static func isInstalled() -> Bool {
-        let claudeDir = FileManager.default.homeDirectoryForCurrentUser
+        let claudeDir = URL(fileURLWithPath: realHomeDirectory())
             .appendingPathComponent(".claude")
         let settings = claudeDir.appendingPathComponent("settings.json")
 
@@ -129,7 +129,7 @@ struct HookInstaller {
 
     /// Uninstall hooks from settings.json and remove script
     static func uninstall() {
-        let claudeDir = FileManager.default.homeDirectoryForCurrentUser
+        let claudeDir = URL(fileURLWithPath: realHomeDirectory())
             .appendingPathComponent(".claude")
         let hooksDir = claudeDir.appendingPathComponent("hooks")
         let pythonScript = hooksDir.appendingPathComponent("claude-island-state.py")

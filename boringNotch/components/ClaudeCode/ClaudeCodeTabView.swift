@@ -34,18 +34,20 @@ struct ClaudeCodeTabView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
-            sessionMonitor.startMonitoring()
+            // HookSocketServer is started at app launch in AppDelegate.
+            // Just set correct size when this view appears.
+            updateNotchSize()
         }
         .onChange(of: vm.notchState) { _, newState in
-            // Sync boring.notch open/close with claude-island's NotchViewModel
             if newState == .open {
                 claudeVM.notchOpen(reason: .click)
+                // Resize immediately when opening to Claude tab
+                updateNotchSize()
             } else {
                 claudeVM.notchClose()
             }
         }
         .onChange(of: claudeVM.contentType) { _, _ in
-            // Update notch size when content type changes
             updateNotchSize()
         }
     }

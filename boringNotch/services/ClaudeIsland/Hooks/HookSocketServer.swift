@@ -103,11 +103,14 @@ typealias HookEventHandler = @Sendable (HookEvent) -> Void
 /// Callback for permission response failures (socket died)
 typealias PermissionFailureHandler = @Sendable (_ sessionId: String, _ toolUseId: String) -> Void
 
-/// Unix domain socket server that receives events from Claude Code hooks
+/// TCP socket server on localhost that receives events from Claude Code hooks.
+/// Uses a TCP socket instead of Unix domain socket to work within the macOS app sandbox.
 /// Uses GCD DispatchSource for non-blocking I/O
 class HookSocketServer {
     static let shared = HookSocketServer()
-    static let socketPath = NSHomeDirectory() + "/.claude/boring-notch.sock"
+    static let port: UInt16 = 22849
+    // Keep socketPath for log messages
+    static let socketPath = "localhost:\(port)"
 
     private var serverSocket: Int32 = -1
     private var acceptSource: DispatchSourceRead?
@@ -140,41 +143,36 @@ class HookSocketServer {
         eventHandler = onEvent
         permissionFailureHandler = onPermissionFailure
 
-        unlink(Self.socketPath)
-
-        serverSocket = socket(AF_UNIX, SOCK_STREAM, 0)
+        serverSocket = socket(AF_INET, SOCK_STREAM, 0)
         guard serverSocket >= 0 else {
             logger.error("Failed to create socket: \(errno)")
             return
         }
 
+        // Allow address reuse
+        var reuseAddr: Int32 = 1
+        setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &reuseAddr, socklen_t(MemoryLayout<Int32>.size))
+
         let flags = fcntl(serverSocket, F_GETFL)
         _ = fcntl(serverSocket, F_SETFL, flags | O_NONBLOCK)
 
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        Self.socketPath.withCString { ptr in
-            withUnsafeMutablePointer(to: &addr.sun_path) { pathPtr in
-                let pathBufferPtr = UnsafeMutableRawPointer(pathPtr)
-                    .assumingMemoryBound(to: CChar.self)
-                strcpy(pathBufferPtr, ptr)
-            }
-        }
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = Self.port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
 
         let bindResult = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockaddrPtr in
-                bind(serverSocket, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+                bind(serverSocket, sockaddrPtr, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
 
         guard bindResult == 0 else {
-            logger.error("Failed to bind socket: \(errno)")
+            logger.error("Failed to bind TCP socket on port \(Self.port): errno \(errno)")
             close(serverSocket)
             serverSocket = -1
             return
         }
-
-        chmod(Self.socketPath, 0o777)
 
         guard listen(serverSocket, 10) == 0 else {
             logger.error("Failed to listen: \(errno)")
@@ -202,7 +200,6 @@ class HookSocketServer {
     func stop() {
         acceptSource?.cancel()
         acceptSource = nil
-        unlink(Self.socketPath)
 
         permissionsLock.lock()
         for (_, pending) in pendingPermissions {

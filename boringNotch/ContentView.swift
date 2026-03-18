@@ -132,6 +132,7 @@ struct ContentView: View {
                         
                         return view
                             .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
+                            .animation(openAnimation, value: vm.notchSize)
                             .animation(.smooth, value: gestureProgress)
                     }
                     .contentShape(Rectangle())

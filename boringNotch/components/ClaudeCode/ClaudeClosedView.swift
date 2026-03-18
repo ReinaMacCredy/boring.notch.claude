@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct ClaudeClosedView: View {
-    let sessionMonitor: ClaudeSessionMonitor
+    @ObservedObject var sessionMonitor: ClaudeSessionMonitor
     let closedNotchSize: CGSize
     let effectiveClosedNotchHeight: CGFloat
 

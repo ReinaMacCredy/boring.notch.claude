@@ -24,6 +24,8 @@ struct DynamicNotchApp: App {
         updaterController = SPUStandardUpdaterController(
             startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
+        print("Hello from boring.notch.claude")
+
         // Initialize the settings window controller with the updater controller
         SettingsWindowController.shared.setUpdaterController(updaterController)
     }

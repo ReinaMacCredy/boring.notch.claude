@@ -23,7 +23,11 @@ struct ContentView: View {
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var volumeManager = VolumeManager.shared
+    // Claude Code state lives here (not in ClaudeCodeTabView) so it persists
+    // across notch open/close cycles and is shared with ClaudeClosedView.
     @StateObject private var claudeSessionMonitor = ClaudeSessionMonitor()
+    @StateObject private var claudeVM = NotchViewModel()
+
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
@@ -226,12 +230,29 @@ struct ContentView: View {
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onAppear {
+            claudeVM.boringVM = vm
+        }
+        .onChange(of: vm.notchState) { _, newState in
+            // Sync Claude tab state with notch open/close
+            if coordinator.currentView == .claudeCode {
+                if newState == .open {
+                    claudeVM.notchOpen(reason: .click)
+                } else {
+                    claudeVM.notchClose()
+                }
+            }
+        }
         .onChange(of: coordinator.currentView) { oldView, newView in
             // Reset notch size when switching away from Claude tab
             if vm.notchState == .open && oldView == .claudeCode && newView != .claudeCode {
                 withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
                     vm.notchSize = openNotchSize
                 }
+            }
+            // Sync size when switching TO Claude tab
+            if vm.notchState == .open && newView == .claudeCode {
+                claudeVM.notchOpen(reason: .click)
             }
         }
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
@@ -376,7 +397,10 @@ struct ContentView: View {
                     case .shelf:
                         ShelfView()
                     case .claudeCode:
-                        ClaudeCodeTabView()
+                        ClaudeCodeTabView(
+                            claudeVM: claudeVM,
+                            sessionMonitor: claudeSessionMonitor
+                        )
                     }
                 }
                 .transition(

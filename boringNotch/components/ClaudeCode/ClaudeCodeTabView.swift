@@ -3,22 +3,17 @@
 //  boringNotch
 //
 //  Adapter that integrates claude-island's Claude Code views
-//  into boring.notch's tab system. Matches claude-island's transition
-//  animations exactly: container size and content swap happen in the
-//  same synchronous transaction, animated by .animation() modifiers.
+//  into boring.notch's tab system. State (claudeVM, sessionMonitor)
+//  is owned by ContentView so it persists across notch open/close.
 //
 
 import SwiftUI
 
 struct ClaudeCodeTabView: View {
-    @EnvironmentObject var vm: BoringViewModel
-    @StateObject private var claudeVM = NotchViewModel()
-    @StateObject private var sessionMonitor = ClaudeSessionMonitor()
+    @ObservedObject var claudeVM: NotchViewModel
+    @ObservedObject var sessionMonitor: ClaudeSessionMonitor
 
     var body: some View {
-        // Content with asymmetric transitions matching claude-island.
-        // The Group switch triggers SwiftUI's view identity change,
-        // which fires the .transition() modifiers.
         Group {
             switch claudeVM.contentType {
             case .instances:
@@ -46,17 +41,5 @@ struct ClaudeCodeTabView: View {
                 removal: .opacity.animation(.easeOut(duration: 0.15))
             )
         )
-        .onAppear {
-            // Wire up the BoringViewModel reference so size changes
-            // are synchronous with content type changes
-            claudeVM.boringVM = vm
-        }
-        .onChange(of: vm.notchState) { _, newState in
-            if newState == .open {
-                claudeVM.notchOpen(reason: .click)
-            } else {
-                claudeVM.notchClose()
-            }
-        }
     }
 }

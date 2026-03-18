@@ -78,6 +78,15 @@ struct ClaudeClosedView: View {
                 }
                 .frame(width: sideWidth + (hasPendingPermission ? 18 : 0))
 
+                // Per-session dots: one dot per session, colored by phase
+                HStack(spacing: 4) {
+                    ForEach(sessionMonitor.instances.prefix(5)) { session in
+                        Circle()
+                            .fill(dotColor(for: session.phase))
+                            .frame(width: 6, height: 6)
+                    }
+                }
+
                 // Center: black spacer (expands briefly on bounce)
                 Rectangle()
                     .fill(.black)
@@ -103,6 +112,21 @@ struct ClaudeClosedView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isBouncing)
         .onChange(of: sessionMonitor.instances) { _, instances in
             trackWaitingForInput(instances)
+        }
+    }
+
+    // MARK: - Dot Colors
+
+    private func dotColor(for phase: SessionPhase) -> Color {
+        switch phase {
+        case .processing, .compacting:
+            return TerminalColors.green
+        case .waitingForApproval:
+            return Color(red: 1.0, green: 0.7, blue: 0.0)
+        case .waitingForInput:
+            return Color(red: 0.85, green: 0.47, blue: 0.34)
+        default:
+            return .white.opacity(0.3)
         }
     }
 

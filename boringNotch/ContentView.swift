@@ -91,8 +91,9 @@ struct ContentView: View {
             }
             if hasActivity {
                 let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 3))
-                // Left: crab(24) + dots(10 each) + spacing(8)
-                let leftWidth: CGFloat = 24 + (dotCount * 10) + 8
+                let hasPermission = claudeSessionMonitor.instances.contains { $0.phase.isWaitingForApproval }
+                // Left: crab(24) + dots(10 each) + permission icon(20 if present) + spacing(8)
+                let leftWidth: CGFloat = 24 + (dotCount * 10) + (hasPermission ? 20 : 0) + 8
                 // Right: spinner/checkmark
                 let rightWidth: CGFloat = max(0, vm.effectiveClosedNotchHeight - 12) + 10
                 chinWidth += leftWidth + rightWidth

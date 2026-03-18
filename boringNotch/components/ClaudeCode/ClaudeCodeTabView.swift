@@ -32,31 +32,23 @@ struct ClaudeCodeTabView: View {
                 )
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onAppear {
-            // HookSocketServer is started at app launch in AppDelegate.
-            // Just set correct size when this view appears.
-            updateNotchSize()
-        }
+        .frame(maxWidth: .infinity, alignment: .top)
         .onChange(of: vm.notchState) { _, newState in
             if newState == .open {
                 claudeVM.notchOpen(reason: .click)
-                // Resize immediately when opening to Claude tab
-                updateNotchSize()
             } else {
                 claudeVM.notchClose()
             }
         }
-        .onChange(of: claudeVM.contentType) { _, _ in
-            updateNotchSize()
-        }
-    }
-
-    private func updateNotchSize() {
-        let newSize = claudeVM.openedSize
-        if vm.notchState == .open {
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
-                vm.notchSize = newSize
+        .onChange(of: claudeVM.contentType) { _, newContent in
+            // Only resize when entering/exiting chat or menu (not for instances,
+            // which uses the default openNotchSize)
+            guard vm.notchState == .open else { return }
+            let newSize = claudeVM.openedSize
+            if newSize != vm.notchSize {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+                    vm.notchSize = newSize
+                }
             }
         }
     }

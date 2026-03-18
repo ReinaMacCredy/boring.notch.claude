@@ -219,6 +219,14 @@ struct ContentView: View {
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onChange(of: coordinator.currentView) { oldView, newView in
+            // Reset notch size when switching away from Claude tab
+            if vm.notchState == .open && oldView == .claudeCode && newView != .claudeCode {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+                    vm.notchSize = openNotchSize
+                }
+            }
+        }
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
             anyDropDebounceTask?.cancel()
 
@@ -296,15 +304,9 @@ struct ContentView: View {
                           MusicLiveActivity()
                               .frame(alignment: .center)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && !claudeSessionMonitor.instances.isEmpty && !vm.hideOnClosed {
-                          // Claude Code compact view - show crab icon when sessions exist
-                          HStack {
-                              Spacer()
-                              ProcessingSpinner()
-                                  .frame(width: 12, height: 12)
-                              Spacer()
-                          }
-                          .frame(height: vm.effectiveClosedNotchHeight)
-                          .transition(.opacity.animation(.easeInOut(duration: 0.3)))
+                          // Claude Code: subtle dot below notch, matching original boring.notch idle sizing
+                          Rectangle().fill(.clear)
+                              .frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {

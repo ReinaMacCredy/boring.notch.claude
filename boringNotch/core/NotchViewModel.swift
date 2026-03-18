@@ -49,15 +49,17 @@ class NotchViewModel: ObservableObject {
 
     // MARK: - Sizing
 
-    /// Dynamic opened size based on content type
+    /// Dynamic opened size based on content type.
+    /// Instances and menu use the standard notch height; chat expands taller.
     var openedSize: CGSize {
         switch contentType {
         case .chat:
-            return CGSize(width: 640, height: 580)
+            return CGSize(width: openNotchSize.width, height: 480)
         case .menu:
-            return CGSize(width: 640, height: 420)
+            return CGSize(width: openNotchSize.width, height: 300)
         case .instances:
-            return CGSize(width: 640, height: 340)
+            // Same height as other tabs -- content fills naturally
+            return openNotchSize
         }
     }
 

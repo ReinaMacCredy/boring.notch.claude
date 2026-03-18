@@ -14,9 +14,8 @@ let batterySneakSize: CGSize = .init(width: 160, height: 1)
 
 let shadowPadding: CGFloat = 20
 let openNotchSize: CGSize = .init(width: 640, height: 190)
-// Window must accommodate the largest possible notch height (Claude chat at 580)
-let maxNotchHeight: CGFloat = 580
-let windowSize: CGSize = .init(width: openNotchSize.width, height: maxNotchHeight + shadowPadding)
+// Window height must accommodate the largest Claude view (chat at 580px)
+let windowSize: CGSize = .init(width: openNotchSize.width, height: 580 + shadowPadding)
 let cornerRadiusInsets: (opened: (top: CGFloat, bottom: CGFloat), closed: (top: CGFloat, bottom: CGFloat)) = (opened: (top: 19, bottom: 24), closed: (top: 6, bottom: 14))
 
 enum MusicPlayerImageSizes {

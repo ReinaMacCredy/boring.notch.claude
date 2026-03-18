@@ -32,6 +32,7 @@ build/
 *.dSYM
 
 # Temporary files
+tmp/
 *.swp
 *.swo
 *.tmp

@@ -2,9 +2,9 @@
 //  PermissionBannerView.swift
 //  boringNotch
 //
-//  Pill-shaped drop-down banner that appears below the closed notch
-//  when a Claude session needs tool permission approval. Shows tool name,
-//  Allow/Deny buttons, and a Go button to focus the terminal.
+//  Permission approval row that appears inside the closed notch,
+//  expanding its height downward. No separate pill -- just content
+//  inside the existing notch shape.
 //
 
 import SwiftUI
@@ -19,30 +19,30 @@ struct PermissionBannerView: View {
 
     var body: some View {
         if let session = pendingSession {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 // Tool name + input
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.shield")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.0))
 
                     Text(toolDescription(for: session))
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.7))
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 2)
 
                 // Go to terminal
                 Button {
-                    focusSession(session)
+                    onFocus(session)
                 } label: {
                     Image(systemName: "arrow.up.right.square")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.6))
-                        .frame(width: 28, height: 24)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                        .frame(width: 22, height: 18)
                         .background(Color.white.opacity(0.08))
                         .clipShape(Capsule())
                 }
@@ -53,11 +53,11 @@ struct PermissionBannerView: View {
                     sessionMonitor.denyPermission(sessionId: session.sessionId, reason: nil)
                 } label: {
                     Text("Deny")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.white.opacity(0.1))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.white.opacity(0.5))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.white.opacity(0.08))
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -67,53 +67,27 @@ struct PermissionBannerView: View {
                     sessionMonitor.approvePermission(sessionId: session.sessionId)
                 } label: {
                     Text("Allow")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.black)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.white.opacity(0.9))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.white.opacity(0.85))
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.black)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
-                    )
-                    .shadow(color: .black.opacity(0.5), radius: 8, y: 4)
-            )
-            .padding(.horizontal, 8)
-            .transition(
-                .asymmetric(
-                    insertion: .scale(scale: 0.3, anchor: .top)
-                        .combined(with: .opacity)
-                        .animation(.spring(response: 0.35, dampingFraction: 0.8)),
-                    removal: .scale(scale: 0.3, anchor: .top)
-                        .combined(with: .opacity)
-                        .animation(.spring(response: 0.25, dampingFraction: 1.0))
-                )
-            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .transition(.opacity.combined(with: .move(edge: .top)))
         }
     }
 
     private func toolDescription(for session: SessionState) -> String {
         let toolName = session.pendingToolName ?? "Tool"
         if let input = session.pendingToolInput {
-            let truncated = input.count > 40 ? String(input.prefix(40)) + "..." : input
+            let truncated = input.count > 30 ? String(input.prefix(30)) + "..." : input
             return "\(toolName): \(truncated)"
         }
         return toolName
-    }
-
-    private func focusSession(_ session: SessionState) {
-        guard session.isInTmux, let pid = session.pid else { return }
-        Task {
-            _ = await YabaiController.shared.focusWindow(forClaudePid: pid)
-        }
     }
 }

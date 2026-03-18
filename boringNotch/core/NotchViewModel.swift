@@ -6,6 +6,10 @@
 //  Handles Claude tab internal navigation (instances/chat/menu) and sizing.
 //  Open/close, hover, and gesture handling remain in BoringViewModel.
 //
+//  Key design: when contentType changes, boringVM.notchSize is updated
+//  in the same synchronous block so both animate together (matching
+//  claude-island where notchSize is a computed var).
+//
 
 import AppKit
 import Combine
@@ -47,10 +51,13 @@ class NotchViewModel: ObservableObject {
     @Published var openReason: NotchOpenReason = .unknown
     @Published var contentType: NotchContentType = .instances
 
+    /// Reference to boring.notch's view model for synchronized size updates
+    weak var boringVM: BoringViewModel?
+
     // MARK: - Sizing
 
     /// Dynamic opened size based on content type.
-    /// Instances and menu use the standard notch height; chat expands taller.
+    /// Instances use the standard notch height; chat expands taller.
     var openedSize: CGSize {
         switch contentType {
         case .chat:
@@ -58,15 +65,28 @@ class NotchViewModel: ObservableObject {
         case .menu:
             return CGSize(width: openNotchSize.width, height: 300)
         case .instances:
-            // Same height as other tabs -- content fills naturally
             return openNotchSize
         }
     }
 
     // MARK: - Private
 
-    /// The chat session we're viewing (persists across close/open)
     private var currentChatSession: SessionState?
+
+    /// Set contentType and synchronously update boringVM.notchSize
+    /// so both changes are in the same SwiftUI transaction.
+    private func setContentType(_ newType: NotchContentType) {
+        contentType = newType
+        syncSize()
+    }
+
+    private func syncSize() {
+        guard let vm = boringVM, vm.notchState == .open else { return }
+        let target = openedSize
+        if vm.notchSize != target {
+            vm.notchSize = target
+        }
+    }
 
     // MARK: - Actions
 
@@ -74,44 +94,41 @@ class NotchViewModel: ObservableObject {
         openReason = reason
         status = .opened
 
-        // Don't restore chat on notification - show instances list instead
         if reason == .notification {
             currentChatSession = nil
             return
         }
 
-        // Restore chat session if we had one open before
         if let chatSession = currentChatSession {
             if case .chat(let current) = contentType, current.sessionId == chatSession.sessionId {
                 return
             }
-            contentType = .chat(chatSession)
+            setContentType(.chat(chatSession))
         }
     }
 
     func notchClose() {
-        // Save chat session before closing if in chat mode
         if case .chat(let session) = contentType {
             currentChatSession = session
         }
         status = .closed
         contentType = .instances
+        // Size reset is handled by BoringViewModel.close()
     }
 
     func toggleMenu() {
-        contentType = contentType == .menu ? .instances : .menu
+        setContentType(contentType == .menu ? .instances : .menu)
     }
 
     func showChat(for session: SessionState) {
         if case .chat(let current) = contentType, current.sessionId == session.sessionId {
             return
         }
-        contentType = .chat(session)
+        setContentType(.chat(session))
     }
 
-    /// Go back to instances list and clear saved chat state
     func exitChat() {
         currentChatSession = nil
-        contentType = .instances
+        setContentType(.instances)
     }
 }

@@ -108,7 +108,8 @@ struct ClaudeClosedView: View {
             }
         }
         .frame(height: effectiveClosedNotchHeight, alignment: .center)
-        .animation(.smooth, value: showActivity)
+        // No explicit animation -- relies on mainLayout's compositional springs
+        // (same as MusicLiveActivity). chinWidth drives expand/collapse.
         .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isBouncing)
         .onChange(of: sessionMonitor.instances) { _, instances in
             trackWaitingForInput(instances)

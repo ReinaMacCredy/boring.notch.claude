@@ -408,7 +408,7 @@ struct ContentView: View {
                                   removal: .move(edge: .top).combined(with: .opacity)
                               )
                           )
-                          .animation(.spring(response: 0.35, dampingFraction: 0.8), value: claudeSessionMonitor.pendingInstances.count)
+                          .animation(.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0), value: claudeSessionMonitor.pendingInstances.count)
                       }
                   }
               }

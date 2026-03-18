@@ -420,6 +420,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupDragDetectors()
 
+        // Claude Code: install hooks and start session monitoring
+        if Defaults[.enableClaudeCode] {
+            HookInstaller.installIfNeeded()
+        }
+
         if coordinator.firstLaunch {
             DispatchQueue.main.async {
                 self.showOnboardingWindow()

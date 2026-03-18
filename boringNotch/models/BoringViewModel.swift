@@ -190,7 +190,13 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
-        self.notchSize = openNotchSize
+        // Use larger size for Claude tab, default for others
+        let currentView = BoringViewCoordinator.shared.currentView
+        if currentView == .claudeCode {
+            self.notchSize = CGSize(width: 640, height: 340)
+        } else {
+            self.notchSize = openNotchSize
+        }
         self.notchState = .open
 
         // Force music information update when notch is opened

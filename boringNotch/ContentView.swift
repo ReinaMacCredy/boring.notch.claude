@@ -49,7 +49,9 @@ struct ContentView: View {
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
-    private let permissionBannerAnimation = Animation.smooth
+    private let permissionBannerAnimation = Animation.spring(
+        response: 0.45, dampingFraction: 1.0, blendDuration: 0
+    )
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
@@ -417,11 +419,13 @@ struct ContentView: View {
                               }
                           )
                           .frame(width: computedChinWidth)
+                          .frame(height: hasPendingPermissions ? nil : 0)
+                          .clipped()
                           .padding(.top, hasPendingPermissions ? 4 : 0)
                           .opacity(hasPendingPermissions ? 1.0 : 0.0)
                           .scaleEffect(hasPendingPermissions ? 1.0 : 0.8, anchor: .top)
                           .allowsHitTesting(hasPendingPermissions)
-                          .animation(.smooth, value: hasPendingPermissions)
+                          .animation(permissionBannerAnimation, value: hasPendingPermissions)
                       }
                   }
               }
@@ -737,12 +741,10 @@ struct ContentView: View {
         }
 
         permissionDismissTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(500))
+            try? await Task.sleep(for: .milliseconds(450))
             guard !Task.isCancelled else { return }
             guard !claudeSessionMonitor.instances.contains(where: { $0.phase.isWaitingForApproval }) else { return }
-            withAnimation(.smooth) {
-                displayedPermissionSession = nil
-            }
+            displayedPermissionSession = nil
         }
     }
 }

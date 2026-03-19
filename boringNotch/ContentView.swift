@@ -425,7 +425,7 @@ struct ContentView: View {
                       }
                   }
               }
-              .conditionalModifier((coordinator.sneakPeek.show && (coordinator.sneakPeek.type == .music) && vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard) || (coordinator.sneakPeek.show && (coordinator.sneakPeek.type != .music) && (vm.notchState == .closed)) || (vm.notchState == .closed && hasPendingPermissions)) { view in
+              .conditionalModifier((coordinator.sneakPeek.show && (coordinator.sneakPeek.type == .music) && vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard) || (coordinator.sneakPeek.show && (coordinator.sneakPeek.type != .music) && (vm.notchState == .closed)) || (vm.notchState == .closed && displayedPermissionSession != nil)) { view in
                   view
                       .fixedSize()
               }
@@ -737,7 +737,7 @@ struct ContentView: View {
         }
 
         permissionDismissTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(420))
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             guard !claudeSessionMonitor.instances.contains(where: { $0.phase.isWaitingForApproval }) else { return }
             withAnimation(.smooth) {

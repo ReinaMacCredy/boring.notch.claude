@@ -35,6 +35,11 @@ struct ContentView: View {
     @State private var gestureProgress: CGFloat = .zero
 
     @State private var haptics: Bool = false
+    @State private var hasPendingPermissions: Bool = false
+    @State private var displayedPermissionSession: SessionState?
+    @State private var showsClaudeClosedView: Bool = false
+    @State private var permissionDismissTask: Task<Void, Never>?
+    @State private var claudeClosedDismissTask: Task<Void, Never>?
 
     @Namespace var albumArtNamespace
 
@@ -44,6 +49,7 @@ struct ContentView: View {
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
+    private let permissionBannerAnimation = Animation.smooth
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
@@ -177,7 +183,7 @@ struct ContentView: View {
                                 try? await Task.sleep(for: .milliseconds(100))
                                 guard !Task.isCancelled else { return }
                                 await MainActor.run {
-                                    if self.vm.notchState == .open && !self.isHovering && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
+                                    if self.vm.notchState == .open && !self.isHovering && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose && !self.claudeVM.isPinned {
                                         self.vm.close()
                                     }
                                 }
@@ -192,13 +198,13 @@ struct ContentView: View {
                         }
                     }
                     .onChange(of: vm.isBatteryPopoverActive) {
-                        if !vm.isBatteryPopoverActive && !isHovering && vm.notchState == .open && !SharingStateManager.shared.preventNotchClose {
+                        if !vm.isBatteryPopoverActive && !isHovering && vm.notchState == .open && !SharingStateManager.shared.preventNotchClose && !claudeVM.isPinned {
                             hoverTask?.cancel()
                             hoverTask = Task {
                                 try? await Task.sleep(for: .milliseconds(100))
                                 guard !Task.isCancelled else { return }
                                 await MainActor.run {
-                                    if !self.vm.isBatteryPopoverActive && !self.isHovering && self.vm.notchState == .open && !SharingStateManager.shared.preventNotchClose {
+                                    if !self.vm.isBatteryPopoverActive && !self.isHovering && self.vm.notchState == .open && !SharingStateManager.shared.preventNotchClose && !self.claudeVM.isPinned {
                                         self.vm.close()
                                     }
                                 }
@@ -238,6 +244,13 @@ struct ContentView: View {
         .environmentObject(vm)
         .onAppear {
             claudeVM.boringVM = vm
+            showsClaudeClosedView = !claudeSessionMonitor.instances.isEmpty
+            displayedPermissionSession = claudeSessionMonitor.instances.first { $0.phase.isWaitingForApproval }
+            hasPendingPermissions = displayedPermissionSession != nil
+        }
+        .onChange(of: claudeSessionMonitor.instances) { _, instances in
+            updateClaudeClosedVisibility(with: instances)
+            updatePermissionBanner(with: instances)
         }
         .onChange(of: vm.notchState) { _, newState in
             // Sync Claude tab state with notch open/close
@@ -282,7 +295,7 @@ struct ContentView: View {
                 }
 
                 vm.dropEvent = false
-                if !SharingStateManager.shared.preventNotchClose {
+                if !SharingStateManager.shared.preventNotchClose && !claudeVM.isPinned {
                     vm.close()
                 }
             }
@@ -337,12 +350,12 @@ struct ContentView: View {
                       } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
                           MusicLiveActivity()
                               .frame(alignment: .center)
-                      } else if !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && !claudeSessionMonitor.instances.isEmpty && !vm.hideOnClosed {
-                          ClaudeClosedView(
-                              sessionMonitor: claudeSessionMonitor,
-                              closedNotchSize: vm.closedNotchSize,
-                              effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
-                          )
+                        } else if !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && showsClaudeClosedView && !vm.hideOnClosed {
+                            ClaudeClosedView(
+                                sessionMonitor: claudeSessionMonitor,
+                                closedNotchSize: vm.closedNotchSize,
+                                effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
+                            )
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {
@@ -390,9 +403,12 @@ struct ContentView: View {
                       }
 
                       // Permission drop-down banner -- same width as the notch
-                      if vm.notchState == .closed && !claudeSessionMonitor.pendingInstances.isEmpty {
+                      if vm.notchState == .closed,
+                         let permissionSession = displayedPermissionSession
+                      {
                           PermissionBannerView(
                               sessionMonitor: claudeSessionMonitor,
+                              session: permissionSession,
                               onFocus: { session in
                                   guard session.isInTmux, let pid = session.pid else { return }
                                   Task {
@@ -401,18 +417,15 @@ struct ContentView: View {
                               }
                           )
                           .frame(width: computedChinWidth)
-                          .padding(.top, 4)
-                          .transition(
-                              .asymmetric(
-                                  insertion: .move(edge: .top).combined(with: .opacity),
-                                  removal: .move(edge: .top).combined(with: .opacity)
-                              )
-                          )
-                          .animation(.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0), value: claudeSessionMonitor.pendingInstances.count)
+                          .padding(.top, hasPendingPermissions ? 4 : 0)
+                          .opacity(hasPendingPermissions ? 1.0 : 0.0)
+                          .scaleEffect(hasPendingPermissions ? 1.0 : 0.8, anchor: .top)
+                          .allowsHitTesting(hasPendingPermissions)
+                          .animation(.smooth, value: hasPendingPermissions)
                       }
                   }
               }
-              .conditionalModifier((coordinator.sneakPeek.show && (coordinator.sneakPeek.type == .music) && vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard) || (coordinator.sneakPeek.show && (coordinator.sneakPeek.type != .music) && (vm.notchState == .closed))) { view in
+              .conditionalModifier((coordinator.sneakPeek.show && (coordinator.sneakPeek.type == .music) && vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard) || (coordinator.sneakPeek.show && (coordinator.sneakPeek.type != .music) && (vm.notchState == .closed)) || (vm.notchState == .closed && hasPendingPermissions)) { view in
                   view
                       .fixedSize()
               }
@@ -629,7 +642,7 @@ struct ContentView: View {
                         self.isHovering = false
                     }
                     
-                    if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
+                    if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose && !self.claudeVM.isPinned {
                         self.vm.close()
                     }
                 }
@@ -679,13 +692,56 @@ struct ContentView: View {
             withAnimation(animationSpring) {
                 isHovering = false
             }
-            if !SharingStateManager.shared.preventNotchClose { 
+            if !SharingStateManager.shared.preventNotchClose && !claudeVM.isPinned {
                 gestureProgress = .zero
                 vm.close()
             }
 
             if Defaults[.enableHaptics] {
                 haptics.toggle()
+              }
+          }
+      }
+
+    private func updateClaudeClosedVisibility(with instances: [SessionState]) {
+        claudeClosedDismissTask?.cancel()
+
+        if instances.isEmpty {
+            guard showsClaudeClosedView else { return }
+            // No delay -- chin width contracts immediately via source animation,
+            // view removal must happen simultaneously to match music player pattern.
+            withAnimation(.smooth) {
+                showsClaudeClosedView = false
+            }
+        } else {
+            withAnimation(.smooth) {
+                showsClaudeClosedView = true
+            }
+        }
+    }
+
+    private func updatePermissionBanner(with instances: [SessionState]) {
+        let approvalSession = instances.first { $0.phase.isWaitingForApproval }
+        permissionDismissTask?.cancel()
+
+        if let approvalSession {
+            displayedPermissionSession = approvalSession
+            withAnimation(permissionBannerAnimation) {
+                hasPendingPermissions = true
+            }
+            return
+        }
+
+        withAnimation(permissionBannerAnimation) {
+            hasPendingPermissions = false
+        }
+
+        permissionDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(420))
+            guard !Task.isCancelled else { return }
+            guard !claudeSessionMonitor.instances.contains(where: { $0.phase.isWaitingForApproval }) else { return }
+            withAnimation(.smooth) {
+                displayedPermissionSession = nil
             }
         }
     }

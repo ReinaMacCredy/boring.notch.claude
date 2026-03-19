@@ -204,33 +204,49 @@ struct ChatView: View {
     // MARK: - Header
 
     @State private var isHeaderHovered = false
+    @State private var isPinHovered = false
 
     private var chatHeader: some View {
-        Button {
-            viewModel.exitChat()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(isHeaderHovered ? 1.0 : 0.6))
-                    .frame(width: 24, height: 24)
+        HStack(spacing: 0) {
+            Button {
+                viewModel.exitChat()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white.opacity(isHeaderHovered ? 1.0 : 0.6))
+                        .frame(width: 24, height: 24)
 
-                Text(session.displayTitle)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(isHeaderHovered ? 1.0 : 0.85))
-                    .lineLimit(1)
-
-                Spacer()
+                    Text(session.displayTitle)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white.opacity(isHeaderHovered ? 1.0 : 0.85))
+                        .lineLimit(1)
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isHeaderHovered ? Color.white.opacity(0.08) : Color.clear)
-            )
+            .buttonStyle(.plain)
+            .onHover { isHeaderHovered = $0 }
+
+            Spacer()
+
+            Button {
+                viewModel.isPinned.toggle()
+            } label: {
+                Image(systemName: viewModel.isPinned ? "pin.fill" : "pin")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(viewModel.isPinned ? .white : .white.opacity(isPinHovered ? 0.8 : 0.4))
+                    .rotationEffect(.degrees(viewModel.isPinned ? 0 : 45))
+                    .frame(width: 28, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(viewModel.isPinned ? Color.white.opacity(0.15) : (isPinHovered ? Color.white.opacity(0.08) : Color.clear))
+                    )
+                    .animation(.easeInOut(duration: 0.2), value: viewModel.isPinned)
+            }
+            .buttonStyle(.plain)
+            .onHover { isPinHovered = $0 }
         }
-        .buttonStyle(.plain)
-        .onHover { isHeaderHovered = $0 }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(Color.black.opacity(0.2))

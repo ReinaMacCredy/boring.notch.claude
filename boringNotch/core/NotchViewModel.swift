@@ -50,6 +50,7 @@ class NotchViewModel: ObservableObject {
     @Published var status: NotchStatus = .closed
     @Published var openReason: NotchOpenReason = .unknown
     @Published var contentType: NotchContentType = .instances
+    @Published var isPinned: Bool = false
 
     /// Reference to boring.notch's view model for synchronized size updates
     weak var boringVM: BoringViewModel?
@@ -108,6 +109,7 @@ class NotchViewModel: ObservableObject {
     }
 
     func notchClose() {
+        isPinned = false
         if case .chat(let session) = contentType {
             currentChatSession = session
         }
@@ -128,6 +130,7 @@ class NotchViewModel: ObservableObject {
     }
 
     func exitChat() {
+        isPinned = false
         currentChatSession = nil
         setContentType(.instances)
     }

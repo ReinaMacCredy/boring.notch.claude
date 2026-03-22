@@ -90,13 +90,9 @@ struct UsageStatsView: View {
                 color: pillColor(for: usage.sevenDay.utilization)
             )
 
-            // Sonnet (if present and distinct)
-            if let sonnet = usage.sevenDaySonnet {
-                usagePill(
-                    value: sonnet.utilization,
-                    label: "Snt",
-                    color: pillColor(for: sonnet.utilization)
-                )
+            // Today's token usage (from ccusage)
+            if let tokens = usageService.tokenUsage {
+                tokenPill(tokens: tokens.totalTokens, cost: tokens.totalCost)
             }
 
             // Extra usage credits (hide when both are zero)
@@ -126,6 +122,22 @@ struct UsageStatsView: View {
     }
 
     // MARK: - Pill Components
+
+    private func tokenPill(tokens: Int, cost: Double) -> some View {
+        HStack(spacing: 4) {
+            Text(formatTokens(tokens))
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(.white.opacity(0.5))
+
+            Text("$\(Int(cost))")
+                .font(.system(size: 9))
+                .foregroundColor(.white.opacity(0.3))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(0.06))
+        .clipShape(Capsule())
+    }
 
     private func usagePill(value: Double, label: String, color: Color) -> some View {
         HStack(spacing: 4) {
@@ -195,6 +207,15 @@ struct UsageStatsView: View {
         let candidates = [usage.fiveHour.resetsAt, usage.sevenDay.resetsAt].compactMap { $0 }
         let future = candidates.filter { $0 > Date() }
         return future.min()
+    }
+
+    private func formatTokens(_ count: Int) -> String {
+        if count >= 1_000_000_000 {
+            return String(format: "%.1fB", Double(count) / 1_000_000_000)
+        } else if count >= 1_000_000 {
+            return String(format: "%.0fM", Double(count) / 1_000_000)
+        }
+        return String(format: "%.0fK", Double(count) / 1_000)
     }
 
     private func formatCredits(_ cents: Double) -> String {

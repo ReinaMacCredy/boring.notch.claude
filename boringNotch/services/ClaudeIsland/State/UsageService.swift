@@ -37,6 +37,11 @@ struct ExtraUsage: Equatable {
     let monthlyLimit: Double // cents
 }
 
+struct TokenUsageData: Equatable {
+    let totalTokens: Int
+    let totalCost: Double
+}
+
 // MARK: - Service
 
 @MainActor
@@ -44,6 +49,7 @@ final class UsageService: ObservableObject {
     static let shared = UsageService()
 
     @Published var usage: UsageData = .empty
+    @Published var tokenUsage: TokenUsageData?
     @Published var isLoading = false
     @Published var lastError: String?
 
@@ -146,10 +152,57 @@ final class UsageService: ObservableObject {
             }
         }
 
+        // Fetch token usage from ccusage (independent of API)
+        await fetchTokenUsage()
+
         isLoading = false
     }
 
-    // MARK: - Keychain
+    // MARK: - Token Usage (ccusage)
+
+    private func fetchTokenUsage() async {
+        let today = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyyMMdd"
+            return f.string(from: Date())
+        }()
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/ccusage")
+        process.arguments = ["daily", "--since", today, "--json"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+        } catch {
+            return // ccusage not installed
+        }
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else { return }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let daily = json["daily"] as? [[String: Any]],
+              let first = daily.first
+        else { return }
+
+        let totalTokens: Int
+        if let t = first["totalTokens"] as? Int { totalTokens = t }
+        else if let t = first["totalTokens"] as? Double { totalTokens = Int(t) }
+        else { return }
+
+        let totalCost: Double
+        if let c = first["totalCost"] as? Double { totalCost = c }
+        else if let c = first["totalCost"] as? Int { totalCost = Double(c) }
+        else { totalCost = 0 }
+
+        self.tokenUsage = TokenUsageData(totalTokens: totalTokens, totalCost: totalCost)
+    }
+
+    // MARK: - Credentials
 
     private struct OAuthCredentials {
         let accessToken: String

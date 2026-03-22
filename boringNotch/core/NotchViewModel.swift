@@ -56,6 +56,10 @@ class NotchViewModel: ObservableObject {
     /// Reference to boring.notch's view model for synchronized size updates
     weak var boringVM: BoringViewModel?
 
+    init() {
+        observeHeightSetting()
+    }
+
     // MARK: - Sizing
 
     /// Dynamic opened size based on content type.
@@ -74,6 +78,17 @@ class NotchViewModel: ObservableObject {
     // MARK: - Private
 
     private var currentChatSession: SessionState?
+    private var heightCancellable: AnyCancellable?
+
+    private func observeHeightSetting() {
+        heightCancellable = Defaults.publisher(.claudeTabHeight)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                self.objectWillChange.send()
+                self.syncSize()
+            }
+    }
 
     /// Set contentType and synchronously update boringVM.notchSize
     /// so both changes are in the same SwiftUI transaction.

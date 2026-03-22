@@ -167,9 +167,10 @@ final class UsageService: ObservableObject {
             return f.string(from: Date())
         }()
 
+        // Run via login shell so PATH includes homebrew/node
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/ccusage")
-        process.arguments = ["daily", "--since", today, "--json"]
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-lc", "ccusage daily --since \(today) --json"]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
@@ -177,7 +178,7 @@ final class UsageService: ObservableObject {
         do {
             try process.run()
         } catch {
-            return // ccusage not installed
+            return // shell not available
         }
         process.waitUntilExit()
 

@@ -9,6 +9,7 @@
 import AppKit
 import Combine
 import Foundation
+import SwiftUI
 
 @MainActor
 class ClaudeSessionMonitor: ObservableObject {
@@ -123,8 +124,10 @@ class ClaudeSessionMonitor: ObservableObject {
     // MARK: - State Update
 
     private func updateFromSessions(_ sessions: [SessionState]) {
-        instances = sessions
-        pendingInstances = sessions.filter { $0.needsAttention }
+        withAnimation(.smooth) {
+            instances = sessions
+            pendingInstances = sessions.filter { $0.needsAttention }
+        }
     }
 
     // MARK: - History Loading (for UI)

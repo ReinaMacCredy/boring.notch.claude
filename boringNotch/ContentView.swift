@@ -52,6 +52,7 @@ struct ContentView: View {
     private let permissionBannerAnimation = Animation.spring(
         response: 0.45, dampingFraction: 1.0, blendDuration: 0
     )
+    private let permissionDismissAnimation = Animation.easeOut(duration: 0.25)
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
@@ -307,7 +308,7 @@ struct ContentView: View {
     @ViewBuilder
     func NotchLayout() -> some View {
         VStack(alignment: .leading) {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 0) {
                 if coordinator.helloAnimationRunning {
                     Spacer()
                     HelloAnimation(onFinish: {
@@ -425,7 +426,6 @@ struct ContentView: View {
                           .opacity(hasPendingPermissions ? 1.0 : 0.0)
                           .scaleEffect(hasPendingPermissions ? 1.0 : 0.8, anchor: .top)
                           .allowsHitTesting(hasPendingPermissions)
-                          .animation(permissionBannerAnimation, value: hasPendingPermissions)
                       }
                   }
               }
@@ -736,12 +736,12 @@ struct ContentView: View {
             return
         }
 
-        withAnimation(permissionBannerAnimation) {
+        withAnimation(permissionDismissAnimation) {
             hasPendingPermissions = false
         }
 
         permissionDismissTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(450))
+            try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
             guard !claudeSessionMonitor.instances.contains(where: { $0.phase.isWaitingForApproval }) else { return }
             displayedPermissionSession = nil

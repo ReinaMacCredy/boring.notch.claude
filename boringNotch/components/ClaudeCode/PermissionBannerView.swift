@@ -11,10 +11,21 @@ import SwiftUI
 
 struct PermissionBannerView: View {
     @ObservedObject var sessionMonitor: ClaudeSessionMonitor
+    let session: SessionState?
     let onFocus: (SessionState) -> Void
 
     private var pendingSession: SessionState? {
-        sessionMonitor.instances.first { $0.phase.isWaitingForApproval }
+        session ?? sessionMonitor.instances.first { $0.phase.isWaitingForApproval }
+    }
+
+    init(
+        sessionMonitor: ClaudeSessionMonitor,
+        session: SessionState? = nil,
+        onFocus: @escaping (SessionState) -> Void
+    ) {
+        self.sessionMonitor = sessionMonitor
+        self.session = session
+        self.onFocus = onFocus
     }
 
     var body: some View {

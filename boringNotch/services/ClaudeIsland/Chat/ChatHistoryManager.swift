@@ -74,16 +74,22 @@ class ChatHistoryManager: ObservableObject {
     // MARK: - State Updates
 
     private func updateFromSessions(_ sessions: [SessionState]) {
-        var newHistories: [String: [ChatHistoryItem]] = [:]
-        var newAgentDescriptions: [String: [String: String]] = [:]
+        // Merge into existing histories to preserve data for sessions not in the
+        // current emission (e.g. when switching tabs causes a publisher re-emit
+        // before chatItems are populated). Only clearHistory() removes entries.
+        var merged = histories
+        var mergedDescriptions = agentDescriptions
         for session in sessions {
             let filteredItems = filterOutSubagentTools(session.chatItems)
-            newHistories[session.sessionId] = filteredItems
-            newAgentDescriptions[session.sessionId] = session.subagentState.agentDescriptions
-            loadedSessions.insert(session.sessionId)
+            // Don't overwrite non-empty history with empty data -- this happens
+            // when SessionStore re-emits a session before chatItems are loaded.
+            if !filteredItems.isEmpty || (merged[session.sessionId] ?? []).isEmpty {
+                merged[session.sessionId] = filteredItems
+            }
+            mergedDescriptions[session.sessionId] = session.subagentState.agentDescriptions
         }
-        histories = newHistories
-        agentDescriptions = newAgentDescriptions
+        histories = merged
+        agentDescriptions = mergedDescriptions
     }
 
     private func filterOutSubagentTools(_ items: [ChatHistoryItem]) -> [ChatHistoryItem] {

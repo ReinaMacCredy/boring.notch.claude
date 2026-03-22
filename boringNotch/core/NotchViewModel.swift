@@ -102,9 +102,16 @@ class NotchViewModel: ObservableObject {
 
         if let chatSession = currentChatSession {
             if case .chat(let current) = contentType, current.sessionId == chatSession.sessionId {
+                // Content type unchanged but notchSize may have been reset
+                // (e.g. switching away from Claude tab shrinks the notch).
+                syncSize()
                 return
             }
             setContentType(.chat(chatSession))
+        } else {
+            // No saved chat session but contentType may still be .chat from
+            // a tab switch (notchClose is only called on notch close, not tab switch).
+            syncSize()
         }
     }
 

@@ -48,7 +48,13 @@ struct ChatView: View {
     @State private var newMessageCount: Int = 0
     @State private var previousHistoryCount: Int = 0
     @State private var isBottomVisible: Bool = true
+    @State private var renderedApprovalTool: String?
+    @State private var isInteractivePromptVisible: Bool = false
+    @State private var interactivePromptTransitionTask: Task<Void, Never>?
     @FocusState private var isInputFocused: Bool
+
+    private static let askUserToolName = "AskUserQuestion"
+    private static let bottomBarAnimation = Animation.spring(response: 0.35, dampingFraction: 0.85)
 
     init(sessionId: String, initialSession: SessionState, sessionMonitor: ClaudeSessionMonitor, viewModel: NotchViewModel) {
         self.sessionId = sessionId
@@ -63,6 +69,7 @@ struct ChatView: View {
         self._history = State(initialValue: cachedHistory)
         self._isLoading = State(initialValue: !alreadyLoaded)
         self._hasLoadedOnce = State(initialValue: alreadyLoaded)
+        self._renderedApprovalTool = State(initialValue: initialSession.phase.approvalToolName)
     }
 
     /// Whether we're waiting for approval
@@ -92,14 +99,10 @@ struct ChatView: View {
                 }
 
                 // Approval bar, interactive prompt, or Input bar
-                if let tool = approvalTool {
-                    if tool == "AskUserQuestion" {
+                if let tool = renderedApprovalTool {
+                    if tool == Self.askUserToolName {
                         // Interactive tools - show prompt to answer in terminal
                         interactivePromptBar
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .bottom)),
-                                removal: .opacity
-                            ))
                     } else {
                         approvalBar(tool: tool)
                             .transition(.asymmetric(
@@ -113,18 +116,22 @@ struct ChatView: View {
                 }
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isWaitingForApproval)
+        .animation(Self.bottomBarAnimation, value: isWaitingForApproval)
         .animation(nil, value: viewModel.status)
         .task {
             // Skip if already loaded (prevents redundant work on view recreation)
             guard !hasLoadedOnce else { return }
             hasLoadedOnce = true
 
-            // Check if already loaded (from previous visit)
+            // Check if already loaded with data (from previous visit)
             if ChatHistoryManager.shared.isLoaded(sessionId: sessionId) {
-                history = ChatHistoryManager.shared.history(for: sessionId)
-                isLoading = false
-                return
+                let cached = ChatHistoryManager.shared.history(for: sessionId)
+                if !cached.isEmpty {
+                    history = cached
+                    isLoading = false
+                    return
+                }
+                // Loaded flag is set but history is empty -- fall through to reload
             }
 
             // Load in background, show loading state
@@ -191,13 +198,21 @@ struct ChatView: View {
                 }
             }
         }
+        .onChange(of: approvalTool) { _, newTool in
+            syncRenderedApprovalTool(with: newTool)
+        }
         .onAppear {
+            syncRenderedApprovalTool(with: approvalTool)
             // Auto-focus input when chat opens and tmux messaging is available
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 if canSendMessages {
                     isInputFocused = true
                 }
             }
+        }
+        .onDisappear {
+            interactivePromptTransitionTask?.cancel()
+            interactivePromptTransitionTask = nil
         }
     }
 
@@ -455,8 +470,59 @@ struct ChatView: View {
     private var interactivePromptBar: some View {
         ChatInteractivePromptBar(
             isInTmux: session.isInTmux,
+            isVisible: isInteractivePromptVisible,
             onGoToTerminal: { focusTerminal() }
         )
+    }
+
+    private func syncRenderedApprovalTool(with desiredTool: String?) {
+        interactivePromptTransitionTask?.cancel()
+        interactivePromptTransitionTask = nil
+
+        if desiredTool == Self.askUserToolName {
+            if renderedApprovalTool != desiredTool {
+                withAnimation(Self.bottomBarAnimation) {
+                    renderedApprovalTool = desiredTool
+                }
+            }
+            scheduleInteractivePromptVisibility(true)
+            return
+        }
+
+        guard renderedApprovalTool == Self.askUserToolName else {
+            if renderedApprovalTool != desiredTool {
+                withAnimation(Self.bottomBarAnimation) {
+                    renderedApprovalTool = desiredTool
+                }
+            }
+            return
+        }
+
+        isInteractivePromptVisible = false
+
+        interactivePromptTransitionTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: ChatInteractivePromptAnimation.dismissalDuration)
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else { return }
+
+            withAnimation(Self.bottomBarAnimation) {
+                renderedApprovalTool = desiredTool
+            }
+            interactivePromptTransitionTask = nil
+        }
+    }
+
+    private func scheduleInteractivePromptVisibility(_ isVisible: Bool) {
+        interactivePromptTransitionTask = Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled, renderedApprovalTool == Self.askUserToolName else { return }
+            isInteractivePromptVisible = isVisible
+            interactivePromptTransitionTask = nil
+        }
     }
 
     // MARK: - Autoscroll Management
@@ -1013,13 +1079,33 @@ struct InterruptedMessageView: View {
 
 // MARK: - Chat Interactive Prompt Bar
 
+private enum ChatInteractivePromptAnimation {
+    static let hiddenContentOffset: CGFloat = -10
+    static let hiddenButtonScale: CGFloat = 0.8
+    static let hiddenContainerOffset: CGFloat = 10
+    static let contentSpring = Animation.spring(response: 0.3, dampingFraction: 0.7)
+    static let buttonSpring = Animation.spring(response: 0.35, dampingFraction: 0.7)
+    static let containerSpring = Animation.spring(response: 0.35, dampingFraction: 0.85)
+    static let enterContentDelay = 0.05
+    static let enterButtonDelay = 0.1
+    static let exitContentDelay = 0.05
+    static let exitButtonDelay = 0.0
+    static let dismissalDuration: Duration = .milliseconds(450)
+
+    static func contentAnimation(isVisible: Bool) -> Animation {
+        contentSpring.delay(isVisible ? enterContentDelay : exitContentDelay)
+    }
+
+    static func buttonAnimation(isVisible: Bool) -> Animation {
+        buttonSpring.delay(isVisible ? enterButtonDelay : exitButtonDelay)
+    }
+}
+
 /// Bar for interactive tools like AskUserQuestion that need terminal input
 struct ChatInteractivePromptBar: View {
     let isInTmux: Bool
+    let isVisible: Bool
     let onGoToTerminal: () -> Void
-
-    @State private var showContent = false
-    @State private var showButton = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1033,8 +1119,9 @@ struct ChatInteractivePromptBar: View {
                     .foregroundColor(.white.opacity(0.5))
                     .lineLimit(1)
             }
-            .opacity(showContent ? 1 : 0)
-            .offset(x: showContent ? 0 : -10)
+            .opacity(isVisible ? 1 : 0)
+            .offset(x: isVisible ? 0 : ChatInteractivePromptAnimation.hiddenContentOffset)
+            .animation(ChatInteractivePromptAnimation.contentAnimation(isVisible: isVisible), value: isVisible)
 
             Spacer()
 
@@ -1057,21 +1144,18 @@ struct ChatInteractivePromptBar: View {
                 .clipShape(Capsule())
             }
             .buttonStyle(.plain)
-            .opacity(showButton ? 1 : 0)
-            .scaleEffect(showButton ? 1 : 0.8)
+            .opacity(isVisible ? 1 : 0)
+            .scaleEffect(isVisible ? 1 : ChatInteractivePromptAnimation.hiddenButtonScale)
+            .animation(ChatInteractivePromptAnimation.buttonAnimation(isVisible: isVisible), value: isVisible)
         }
         .frame(minHeight: 44)  // Consistent height with other bars
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.black.opacity(0.2))
-        .onAppear {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7).delay(0.05)) {
-                showContent = true
-            }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7).delay(0.1)) {
-                showButton = true
-            }
-        }
+        .opacity(isVisible ? 1 : 0)
+        .offset(y: isVisible ? 0 : ChatInteractivePromptAnimation.hiddenContainerOffset)
+        .animation(ChatInteractivePromptAnimation.containerSpring, value: isVisible)
+        .allowsHitTesting(isVisible)
     }
 }
 

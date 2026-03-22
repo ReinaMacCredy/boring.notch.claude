@@ -27,8 +27,24 @@ struct ClaudeClosedView: View {
     @State private var isBouncing: Bool = false
     // Trigger to force re-evaluation of hasWaitingForInput after 30s
     @State private var refreshTrigger: Bool = false
+    @State private var isShowingActivity: Bool = false
+    @State private var displayedSessions: [SessionState] = []
+    @State private var displayedHasPendingPermission: Bool = false
+    @State private var displayedIndicatorMode: DisplayedIndicatorMode = .processing
+    @State private var clearDisplayedActivityTask: Task<Void, Never>?
+
+    private let closeActivityAnimation = Animation.spring(
+        response: 0.45,
+        dampingFraction: 1.0,
+        blendDuration: 0
+    )
 
     // MARK: - Activity State
+
+    private enum DisplayedIndicatorMode {
+        case processing
+        case readyForInput
+    }
 
     private var isAnyProcessing: Bool {
         sessionMonitor.instances.contains { $0.phase == .processing || $0.phase == .compacting }
@@ -60,59 +76,84 @@ struct ClaudeClosedView: View {
         max(0, effectiveClosedNotchHeight - 12) + 10
     }
 
+    private var leadingWidth: CGFloat {
+        let dotCount = CGFloat(min(displayedSessions.count, 3))
+        return 24 + (dotCount * 10) + (displayedHasPendingPermission ? 20 : 0) + 8
+    }
+
+    private var centerWidth: CGFloat {
+        if isShowingActivity {
+            return closedNotchSize.width - cornerRadiusInsets.closed.top + (isBouncing ? 16 : 0)
+        }
+        return closedNotchSize.width - 20
+    }
+
     // MARK: - Body
 
     var body: some View {
+        let activityOpacity = isShowingActivity ? 1.0 : 0.0
+        let activityScale = isShowingActivity ? 1.0 : 0.9
+
         HStack(spacing: 0) {
-            if showActivity {
-                // Left side: crab + dots + optional permission indicator
-                // All positioned in the left expansion area, outside the physical notch
-                HStack(spacing: 6) {
-                    ClaudeCrabIcon(size: 14, animateLegs: isAnyProcessing)
+            HStack(spacing: 6) {
+                ClaudeCrabIcon(size: 14, animateLegs: isAnyProcessing)
 
-                    // Per-session dots
-                    HStack(spacing: 4) {
-                        ForEach(sessionMonitor.instances.prefix(3)) { session in
-                            Circle()
-                                .fill(dotColor(for: session.phase))
-                                .frame(width: 6, height: 6)
-                        }
-                    }
-
-                    if hasPendingPermission {
-                        PermissionIndicatorIcon(
-                            size: 14,
-                            color: Color(red: 0.85, green: 0.47, blue: 0.34)
-                        )
+                HStack(spacing: 4) {
+                    ForEach(displayedSessions.prefix(3)) { session in
+                        Circle()
+                            .fill(dotColor(for: session.phase))
+                            .frame(width: 6, height: 6)
                     }
                 }
 
-                // Center: black spacer covering the physical notch area
-                Rectangle()
-                    .fill(.black)
-                    .frame(width: closedNotchSize.width - cornerRadiusInsets.closed.top + (isBouncing ? 16 : 0))
-
-                // Right: spinner or checkmark
-                // Priority: processing/permission > waitingForInput
-                if isAnyProcessing || hasPendingPermission {
-                    ProcessingSpinner()
-                        .frame(width: sideWidth)
-                } else if hasWaitingForInput {
-                    ReadyForInputIndicatorIcon(size: 14, color: TerminalColors.green)
-                        .frame(width: sideWidth)
+                if displayedHasPendingPermission {
+                    PermissionIndicatorIcon(
+                        size: 14,
+                        color: Color(red: 0.85, green: 0.47, blue: 0.34)
+                    )
                 }
-            } else {
-                // No activity: invisible placeholder
-                Rectangle().fill(.clear)
-                    .frame(width: closedNotchSize.width - 20)
             }
+            .frame(width: isShowingActivity ? leadingWidth : 0, alignment: .leading)
+            .scaleEffect(activityScale, anchor: .trailing)
+            .opacity(activityOpacity)
+            .clipped()
+
+            Rectangle()
+                .fill(.clear)
+                .frame(width: centerWidth)
+
+            ZStack {
+                switch displayedIndicatorMode {
+                case .processing:
+                    ProcessingSpinner()
+                case .readyForInput:
+                    ReadyForInputIndicatorIcon(size: 14, color: TerminalColors.green)
+                }
+            }
+            .frame(width: sideWidth)
+            .scaleEffect(activityScale)
+            .opacity(activityOpacity)
+            .frame(width: isShowingActivity ? sideWidth : 0)
+            .clipped()
         }
         .frame(height: effectiveClosedNotchHeight, alignment: .center)
-        // No explicit animation -- relies on mainLayout's compositional springs
-        // (same as MusicLiveActivity). chinWidth drives expand/collapse.
         .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isBouncing)
+        .onAppear {
+            refreshDisplayedActivity()
+            isShowingActivity = showActivity
+        }
+        .onChange(of: showActivity) { _, newValue in
+            handleActivityVisibilityChange(newValue)
+        }
         .onChange(of: sessionMonitor.instances) { _, instances in
             trackWaitingForInput(instances)
+            guard showActivity else { return }
+            withAnimation(closeActivityAnimation) {
+                refreshDisplayedActivity()
+            }
+        }
+        .onDisappear {
+            clearDisplayedActivityTask?.cancel()
         }
     }
 
@@ -170,5 +211,32 @@ struct ClaudeClosedView: View {
         }
 
         previousWaitingIds = currentIds
+    }
+
+    private func refreshDisplayedActivity() {
+        displayedSessions = Array(sessionMonitor.instances.prefix(3))
+        displayedHasPendingPermission = hasPendingPermission
+        displayedIndicatorMode = (isAnyProcessing || hasPendingPermission) ? .processing : .readyForInput
+    }
+
+    private func handleActivityVisibilityChange(_ newValue: Bool) {
+        clearDisplayedActivityTask?.cancel()
+
+        if newValue {
+            refreshDisplayedActivity()
+        }
+
+        withAnimation(closeActivityAnimation) {
+            isShowingActivity = newValue
+        }
+
+        guard !newValue else { return }
+
+        clearDisplayedActivityTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !Task.isCancelled, !showActivity else { return }
+            displayedSessions = []
+            displayedHasPendingPermission = false
+        }
     }
 }

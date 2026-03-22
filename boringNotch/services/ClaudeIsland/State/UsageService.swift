@@ -7,6 +7,7 @@
 //
 
 import Combine
+import Defaults
 import Foundation
 import Security
 
@@ -56,6 +57,10 @@ final class UsageService: ObservableObject {
     private let keychainService = "Claude Code-credentials"
     private let refreshBufferSeconds: TimeInterval = 5 * 60
 
+    // Threshold notification tracking
+    private var lastNotifiedBucket: Int = -1
+    private var lastResetDate: Date?
+
     private init() {}
 
     // MARK: - Public
@@ -77,6 +82,36 @@ final class UsageService: ObservableObject {
         refreshTimer = nil
     }
 
+    // MARK: - Threshold Notifications
+
+    private func checkThresholdCrossing(_ data: UsageData) {
+        guard Defaults[.showUsageThresholdNotifications],
+              Defaults[.enableClaudeCode] else { return }
+
+        let step = Defaults[.usageThresholdStep]
+        guard step > 0 else { return }
+
+        let utilization = data.fiveHour.utilization
+
+        // Reset tracking when the 5-hour window rolls over
+        if let newReset = data.fiveHour.resetsAt, newReset != lastResetDate {
+            lastResetDate = newReset
+            lastNotifiedBucket = -1
+        }
+
+        let currentBucket = Int(utilization / step)
+
+        // Only fire when crossing into a new higher bucket
+        if currentBucket > lastNotifiedBucket && currentBucket > 0 {
+            lastNotifiedBucket = currentBucket
+            BoringViewCoordinator.shared.toggleExpandingView(
+                status: true,
+                type: .usageThreshold,
+                value: CGFloat(utilization)
+            )
+        }
+    }
+
     func fetch() async {
         guard !isRefreshing else { return }
         isRefreshing = true
@@ -95,6 +130,7 @@ final class UsageService: ObservableObject {
             let data = try await fetchUsage(accessToken: creds.accessToken)
             self.usage = data
             self.lastError = nil
+            checkThresholdCrossing(data)
         } catch {
             self.lastError = error.localizedDescription
         }

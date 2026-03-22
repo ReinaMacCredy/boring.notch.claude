@@ -199,6 +199,8 @@ extension Defaults.Keys {
     static let enableClaudeCode = Key<Bool>("enableClaudeCode", default: true)
     static let enableClaudeCodeCollapsedView = Key<Bool>("enableClaudeCodeCollapsedView", default: true)
     static let notchTransitionStyle = Key<NotchTransitionStyle>("notchTransitionStyle", default: .crossFadeScale)
+    static let showUsageThresholdNotifications = Key<Bool>("showUsageThresholdNotifications", default: true)
+    static let usageThresholdStep = Key<Double>("usageThresholdStep", default: 10)
 
     // MARK: Advanced Settings
     static let useCustomAccentColor = Key<Bool>("useCustomAccentColor", default: false)

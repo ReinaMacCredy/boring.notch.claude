@@ -1027,6 +1027,8 @@ struct ClaudeCodeSettings: View {
     @StateObject private var sessionMonitor = ClaudeSessionMonitor()
     @Default(.enableClaudeCode) var enableClaudeCode
     @Default(.notchTransitionStyle) var notchTransitionStyle
+    @Default(.showUsageThresholdNotifications) var showUsageThresholdNotifications
+    @Default(.usageThresholdStep) var usageThresholdStep
 
     var body: some View {
         Form {
@@ -1104,6 +1106,46 @@ struct ClaudeCodeSettings: View {
                 }
             } header: {
                 Text("General")
+            }
+
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Usage threshold notifications")
+                            .font(.headline)
+                        Text("Show a notification when 5-hour session usage crosses a threshold.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 40)
+                    Defaults.Toggle("", key: .showUsageThresholdNotifications)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.large)
+                        .disabled(!enableClaudeCode)
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Notification interval")
+                            .font(.headline)
+                        Text("Notify every N% of usage.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 40)
+                    Picker("", selection: $usageThresholdStep) {
+                        Text("Every 10%").tag(10.0)
+                        Text("Every 20%").tag(20.0)
+                        Text("Every 25%").tag(25.0)
+                        Text("Every 50%").tag(50.0)
+                    }
+                    .labelsHidden()
+                    .disabled(!enableClaudeCode || !showUsageThresholdNotifications)
+                }
+            } header: {
+                Text("Usage Notifications")
             }
 
             Section {

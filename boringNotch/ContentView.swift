@@ -82,6 +82,10 @@ struct ContentView: View {
             && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
         {
             chinWidth = 640
+        } else if coordinator.expandingView.type == .usageThreshold && coordinator.expandingView.show
+            && vm.notchState == .closed && Defaults[.showUsageThresholdNotifications]
+        {
+            chinWidth = 640
         } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed
             && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView]
             && !claudeSessionMonitor.instances.isEmpty && claudeHasVisibleActivity && !vm.hideOnClosed
@@ -457,6 +461,14 @@ struct ContentView: View {
                             .frame(width: 76, alignment: .trailing)
                         }
                         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+                    } else if coordinator.expandingView.type == .usageThreshold && coordinator.expandingView.show
+                        && vm.notchState == .closed && Defaults[.showUsageThresholdNotifications]
+                    {
+                        UsageThresholdNotificationView(
+                            utilization: coordinator.expandingView.value,
+                            closedNotchWidth: vm.closedNotchSize.width,
+                            effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
+                        )
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)

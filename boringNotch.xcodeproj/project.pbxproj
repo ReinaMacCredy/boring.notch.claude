@@ -13,6 +13,7 @@
 		29P2AD4ID4V1K2DDXTX7FZB3 /* AskUserQuestionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */; };
 		U5G1SVC001 /* UsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = U5G1SVREF1 /* UsageService.swift */; };
 		U5G1SVC002 /* UsageStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = U5G1SVREF2 /* UsageStatsView.swift */; };
+		U5G1SVC003 /* UsageThresholdNotificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = U5G1SVREF3 /* UsageThresholdNotificationView.swift */; };
 		1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */; };
 		110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */; };
 		1100292A2E8691B400035A57 /* FileShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029292E8691B400035A57 /* FileShareView.swift */; };
@@ -382,6 +383,7 @@
 		7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AskUserQuestionView.swift; sourceTree = "<group>"; };
 		U5G1SVREF1 /* UsageService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageService.swift; sourceTree = "<group>"; };
 		U5G1SVREF2 /* UsageStatsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageStatsView.swift; sourceTree = "<group>"; };
+		U5G1SVREF3 /* UsageThresholdNotificationView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageThresholdNotificationView.swift; sourceTree = "<group>"; };
 		AA8A60393A9BA048B0A37833 /* ClaudeMenuView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeMenuView.swift; sourceTree = "<group>"; };
 		ABEC2FDECE06A08CF212ABC6 /* ChatHistoryManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatHistoryManager.swift; sourceTree = "<group>"; };
 		AE7DED90D78274B921E339DC /* AgentFileWatcher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AgentFileWatcher.swift; sourceTree = "<group>"; };
@@ -1023,6 +1025,7 @@
 				A87C205009FBF440ECD4BA1D /* PermissionBannerView.swift */,
 				7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */,
 				U5G1SVREF2 /* UsageStatsView.swift */,
+				U5G1SVREF3 /* UsageThresholdNotificationView.swift */,
 			);
 			path = ClaudeCode;
 			sourceTree = "<group>";
@@ -1401,6 +1404,7 @@
 				29P2AD4ID4V1K2DDXTX7FZB3 /* AskUserQuestionView.swift in Sources */,
 				U5G1SVC001 /* UsageService.swift in Sources */,
 				U5G1SVC002 /* UsageStatsView.swift in Sources */,
+				U5G1SVC003 /* UsageThresholdNotificationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

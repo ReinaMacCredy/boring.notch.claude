@@ -1029,6 +1029,7 @@ struct ClaudeCodeSettings: View {
     @Default(.notchTransitionStyle) var notchTransitionStyle
     @Default(.showUsageThresholdNotifications) var showUsageThresholdNotifications
     @Default(.usageThresholdStep) var usageThresholdStep
+    @Default(.claudeTabHeight) var claudeTabHeight
 
     var body: some View {
         Form {
@@ -1104,6 +1105,16 @@ struct ClaudeCodeSettings: View {
                     .labelsHidden()
                     .disabled(!enableClaudeCode)
                 }
+
+                Slider(value: $claudeTabHeight, in: 190...400, step: 10) {
+                    HStack {
+                        Text("Claude tab height")
+                        Spacer()
+                        Text("\(Int(claudeTabHeight))px")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(!enableClaudeCode)
             } header: {
                 Text("General")
             }

@@ -61,11 +61,13 @@ final class UsageService: ObservableObject {
     private var lastNotifiedBucket: Int = -1
     private var lastResetDate: Date?
 
-    private init() {}
+    private init() {
+        startAutoRefresh()
+    }
 
     // MARK: - Public
 
-    func startAutoRefresh(interval: TimeInterval = 60) {
+    func startAutoRefresh(interval: TimeInterval = 300) {
         // Fetch immediately
         Task { await fetch() }
 

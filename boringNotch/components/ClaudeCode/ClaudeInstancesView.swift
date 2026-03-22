@@ -23,12 +23,6 @@ struct ClaudeInstancesView: View {
                 instancesList
             }
         }
-        .onAppear {
-            usageService.startAutoRefresh()
-        }
-        .onDisappear {
-            usageService.stopAutoRefresh()
-        }
     }
 
     // MARK: - Empty State
@@ -319,6 +313,7 @@ struct InstanceRow: View {
             Button("Rename...") {
                 editingName = session.displayTitle
                 isRenaming = true
+                SharingStateManager.shared.preventNotchClose = true
             }
             if session.customName != nil {
                 Button("Reset Name") {
@@ -334,8 +329,10 @@ struct InstanceRow: View {
             RenameField(name: $editingName, onSubmit: { newName in
                 onRename(newName)
                 isRenaming = false
+                SharingStateManager.shared.preventNotchClose = false
             }, onCancel: {
                 isRenaming = false
+                SharingStateManager.shared.preventNotchClose = false
             })
         }
         .task {

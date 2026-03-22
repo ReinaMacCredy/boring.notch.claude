@@ -13,6 +13,7 @@
 
 import AppKit
 import Combine
+import Defaults
 import SwiftUI
 
 enum NotchStatus: Equatable {
@@ -66,7 +67,7 @@ class NotchViewModel: ObservableObject {
         case .menu:
             return CGSize(width: openNotchSize.width, height: 300)
         case .instances:
-            return CGSize(width: openNotchSize.width, height: 230)
+            return CGSize(width: openNotchSize.width, height: CGFloat(Defaults[.claudeTabHeight]))
         }
     }
 

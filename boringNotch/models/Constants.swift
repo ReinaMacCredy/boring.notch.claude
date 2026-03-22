@@ -201,6 +201,7 @@ extension Defaults.Keys {
     static let notchTransitionStyle = Key<NotchTransitionStyle>("notchTransitionStyle", default: .crossFadeScale)
     static let showUsageThresholdNotifications = Key<Bool>("showUsageThresholdNotifications", default: true)
     static let usageThresholdStep = Key<Double>("usageThresholdStep", default: 10)
+    static let claudeTabHeight = Key<Double>("claudeTabHeight", default: 230)
 
     // MARK: Advanced Settings
     static let useCustomAccentColor = Key<Bool>("useCustomAccentColor", default: false)

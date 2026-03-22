@@ -16,12 +16,10 @@ struct UsageStatsView: View {
     var body: some View {
         if usageService.isLoading && usage == .empty {
             loadingState
-        } else if usage.fetchedAt == .distantPast {
-            // No data yet, no error -- just skip
-            EmptyView()
-        } else {
+        } else if usage != .empty {
             pillsRow
         }
+        // If usage is empty and not loading, show nothing (no credentials or API unavailable)
     }
 
     // MARK: - Loading
@@ -66,8 +64,8 @@ struct UsageStatsView: View {
                 )
             }
 
-            // Extra usage credits (show whenever data exists)
-            if let extra = usage.extraUsage {
+            // Extra usage credits (hide when both are zero)
+            if let extra = usage.extraUsage, extra.usedCredits > 0 || extra.monthlyLimit > 0 {
                 creditsPill(used: extra.usedCredits, limit: extra.monthlyLimit)
             }
 
@@ -154,9 +152,10 @@ struct UsageStatsView: View {
     }
 
     private func formatCredits(_ cents: Double) -> String {
+        if cents == 0 { return "$0" }
         let dollars = cents / 100
         if dollars < 1 {
-            return String(format: "$%.0f\u{00A2}", cents) // e.g. "40c" -- actually use cents symbol
+            return String(format: "%.0f\u{00A2}", cents)
         }
         return String(format: "$%.2f", dollars)
     }

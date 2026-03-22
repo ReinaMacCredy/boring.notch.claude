@@ -130,7 +130,7 @@ final class UsageService: ObservableObject {
         isLoading = usage == .empty
 
         do {
-            var creds = try readCredentials()
+            var creds = try await readCredentials()
 
             // Refresh token if near expiry
             if creds.expiresAt.timeIntervalSinceNow < refreshBufferSeconds {
@@ -252,34 +252,45 @@ final class UsageService: ObservableObject {
         let expiresAt: Date
     }
 
-    private func readCredentials() throws -> OAuthCredentials {
-        // Use `security` CLI to avoid macOS keychain password popup.
-        // SecItemCopyMatching triggers the system dialog for items created by other apps.
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = ["find-generic-password", "-s", keychainService, "-w"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
+    private func readCredentials() async throws -> OAuthCredentials {
+        // Run on background thread to avoid blocking @MainActor
+        let jsonResult: [String: Any]? = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async { [keychainService] in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+                process.arguments = ["find-generic-password", "-s", keychainService, "-w"]
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = Pipe()
 
-        do {
-            try process.run()
-        } catch {
-            throw UsageError.noCredentials
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                process.waitUntilExit()
+
+                guard process.terminationStatus == 0 else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                guard let str = String(data: data, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                      let jsonData = str.data(using: .utf8),
+                      let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+                else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: json)
+            }
         }
-        process.waitUntilExit()
 
-        guard process.terminationStatus == 0 else {
+        guard let json = jsonResult else {
             throw UsageError.noCredentials
-        }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let str = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-              let jsonData = str.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-        else {
-            throw UsageError.invalidCredentials
         }
 
         guard let oauth = json["claudeAiOauth"] as? [String: Any],

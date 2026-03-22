@@ -92,10 +92,9 @@ struct ContentView: View {
                 $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
             }
             if hasActivity {
-                let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 3))
-                let hasPermission = claudeSessionMonitor.instances.contains { $0.phase.isWaitingForApproval }
-                // Left: crab(24) + dots(10 each) + permission icon(20 if present) + spacing(8)
-                let leftWidth: CGFloat = 24 + (dotCount * 10) + (hasPermission ? 20 : 0) + 8
+                let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 2))
+                // Left: crab(24) + dots(10 each) + spacing(8)
+                let leftWidth: CGFloat = 24 + (dotCount * 10) + 8
                 // Right: spinner/checkmark
                 let rightWidth: CGFloat = max(0, vm.effectiveClosedNotchHeight - 12) + 10
                 chinWidth += leftWidth + rightWidth
@@ -225,6 +224,7 @@ struct ContentView: View {
                             .animation(.smooth, value: gestureProgress)
                             .animation(contentSwapAnimation, value: musicManager.isPlaying || !musicManager.isPlayerIdle)
                             .animation(contentSwapAnimation, value: musicPeekActive)
+                            .animation(permissionBannerAnimation, value: hasPendingPermissions)
                     }
                     .contentShape(Rectangle())
                     .onHover { hovering in
@@ -298,6 +298,7 @@ struct ContentView: View {
                         .frame(width: computedChinWidth, height: vm.chinHeight)
                         .animation(contentSwapAnimation, value: musicManager.isPlaying || !musicManager.isPlayerIdle)
                         .animation(contentSwapAnimation, value: musicPeekActive)
+                        .animation(permissionBannerAnimation, value: hasPendingPermissions)
                 }
             }
         }
@@ -732,6 +733,7 @@ struct ContentView: View {
             
             guard vm.notchState == .closed,
                   !coordinator.sneakPeek.show,
+                  !hasPendingPermissions,
                   Defaults[.openNotchOnHover] else { return }
             
             hoverTask = Task {
@@ -822,10 +824,14 @@ struct ContentView: View {
 
         if instances.isEmpty {
             guard showsClaudeClosedView else { return }
-            // No delay -- chin width contracts immediately via source animation,
-            // view removal must happen simultaneously to match music player pattern.
-            withAnimation(.smooth) {
-                showsClaudeClosedView = false
+            // Keep showing for 5 seconds after all sessions end
+            claudeClosedDismissTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { return }
+                guard claudeSessionMonitor.instances.isEmpty else { return }
+                withAnimation(.smooth) {
+                    showsClaudeClosedView = false
+                }
             }
         } else {
             withAnimation(.smooth) {
@@ -854,7 +860,9 @@ struct ContentView: View {
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
             guard !claudeSessionMonitor.instances.contains(where: { $0.phase.isWaitingForApproval }) else { return }
-            displayedPermissionSession = nil
+            withAnimation(permissionDismissAnimation) {
+                displayedPermissionSession = nil
+            }
         }
     }
 }

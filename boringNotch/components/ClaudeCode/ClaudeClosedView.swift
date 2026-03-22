@@ -77,8 +77,8 @@ struct ClaudeClosedView: View {
     }
 
     private var leadingWidth: CGFloat {
-        let dotCount = CGFloat(min(displayedSessions.count, 3))
-        return 24 + (dotCount * 10) + (displayedHasPendingPermission ? 20 : 0) + 8
+        let dotCount = CGFloat(min(displayedSessions.count, 2))
+        return 24 + (dotCount * 10) + 8
     }
 
     private var centerWidth: CGFloat {
@@ -99,19 +99,13 @@ struct ClaudeClosedView: View {
                 ClaudeCrabIcon(size: 14, animateLegs: isAnyProcessing)
 
                 HStack(spacing: 4) {
-                    ForEach(displayedSessions.prefix(3)) { session in
+                    ForEach(displayedSessions.prefix(2)) { session in
                         Circle()
                             .fill(dotColor(for: session.phase))
                             .frame(width: 6, height: 6)
                     }
                 }
 
-                if displayedHasPendingPermission {
-                    PermissionIndicatorIcon(
-                        size: 14,
-                        color: Color(red: 0.85, green: 0.47, blue: 0.34)
-                    )
-                }
             }
             .frame(width: isShowingActivity ? leadingWidth : 0, alignment: .leading)
             .scaleEffect(activityScale, anchor: .trailing)
@@ -123,11 +117,18 @@ struct ClaudeClosedView: View {
                 .frame(width: centerWidth)
 
             ZStack {
-                switch displayedIndicatorMode {
-                case .processing:
-                    ProcessingSpinner()
-                case .readyForInput:
-                    ReadyForInputIndicatorIcon(size: 14, color: TerminalColors.green)
+                if displayedHasPendingPermission {
+                    PermissionIndicatorIcon(
+                        size: 14,
+                        color: Color(red: 0.85, green: 0.47, blue: 0.34)
+                    )
+                } else {
+                    switch displayedIndicatorMode {
+                    case .processing:
+                        ProcessingSpinner()
+                    case .readyForInput:
+                        ReadyForInputIndicatorIcon(size: 14, color: TerminalColors.green)
+                    }
                 }
             }
             .frame(width: sideWidth)

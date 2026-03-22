@@ -167,40 +167,56 @@ final class UsageService: ObservableObject {
             return f.string(from: Date())
         }()
 
-        // Run via login shell so PATH includes homebrew/node
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", "ccusage daily --since \(today) --json"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
+        // Run on background thread -- ccusage takes ~13s to parse JSONL files
+        let result: TokenUsageData? = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+                process.arguments = ["-lc", "ccusage daily --since \(today) --json"]
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = Pipe()
 
-        do {
-            try process.run()
-        } catch {
-            return // shell not available
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                process.waitUntilExit()
+
+                guard process.terminationStatus == 0 else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let daily = json["daily"] as? [[String: Any]],
+                      let first = daily.first
+                else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let totalTokens: Int
+                if let t = first["totalTokens"] as? Int { totalTokens = t }
+                else if let t = first["totalTokens"] as? Double { totalTokens = Int(t) }
+                else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                let totalCost: Double
+                if let c = first["totalCost"] as? Double { totalCost = c }
+                else if let c = first["totalCost"] as? Int { totalCost = Double(c) }
+                else { totalCost = 0 }
+
+                continuation.resume(returning: TokenUsageData(totalTokens: totalTokens, totalCost: totalCost))
+            }
         }
-        process.waitUntilExit()
 
-        guard process.terminationStatus == 0 else { return }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let daily = json["daily"] as? [[String: Any]],
-              let first = daily.first
-        else { return }
-
-        let totalTokens: Int
-        if let t = first["totalTokens"] as? Int { totalTokens = t }
-        else if let t = first["totalTokens"] as? Double { totalTokens = Int(t) }
-        else { return }
-
-        let totalCost: Double
-        if let c = first["totalCost"] as? Double { totalCost = c }
-        else if let c = first["totalCost"] as? Int { totalCost = Double(c) }
-        else { totalCost = 0 }
-
-        self.tokenUsage = TokenUsageData(totalTokens: totalTokens, totalCost: totalCost)
+        self.tokenUsage = result
     }
 
     // MARK: - Credentials

@@ -133,8 +133,18 @@ final class UsageService: ObservableObject {
             self.usage = data
             self.lastError = nil
             checkThresholdCrossing(data)
+        } catch let error as UsageError {
+            // On rate limit, keep stale data and don't show error if we have data
+            if case .rateLimited = error, usage != .empty {
+                // Silently keep stale data
+            } else if usage == .empty {
+                self.lastError = error.localizedDescription
+            }
+            // If we have data, don't overwrite lastError -- keep showing pills
         } catch {
-            self.lastError = error.localizedDescription
+            if usage == .empty {
+                self.lastError = error.localizedDescription
+            }
         }
 
         isLoading = false
@@ -276,6 +286,13 @@ final class UsageService: ObservableObject {
             throw UsageError.unauthorized
         }
 
+        if http.statusCode == 429 {
+            // Rate limited -- parse retry-after header if available
+            let retryAfter = http.value(forHTTPHeaderField: "retry-after")
+                .flatMap { Double($0) } ?? 300
+            throw UsageError.rateLimited(retryAfter: retryAfter)
+        }
+
         guard http.statusCode == 200 else {
             throw UsageError.apiError(http.statusCode)
         }
@@ -363,6 +380,7 @@ enum UsageError: LocalizedError {
     case unauthorized
     case networkError
     case apiError(Int)
+    case rateLimited(retryAfter: Double)
     case parseError
 
     var errorDescription: String? {
@@ -373,6 +391,7 @@ enum UsageError: LocalizedError {
         case .unauthorized: return "Unauthorized"
         case .networkError: return "Network error"
         case .apiError(let code): return "API error (\(code))"
+        case .rateLimited: return "Rate limited -- will retry"
         case .parseError: return "Failed to parse response"
         }
     }

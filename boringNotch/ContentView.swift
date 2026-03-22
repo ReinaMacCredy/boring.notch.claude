@@ -321,6 +321,7 @@ struct ContentView: View {
         .environmentObject(vm)
         .onAppear {
             claudeVM.boringVM = vm
+            vm.claudeVM = claudeVM
             showsClaudeClosedView = !claudeSessionMonitor.instances.isEmpty
             displayedPermissionSession = claudeSessionMonitor.instances.first { $0.phase.isWaitingForApproval }
             hasPendingPermissions = displayedPermissionSession != nil

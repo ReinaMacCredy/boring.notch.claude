@@ -59,6 +59,18 @@ enum SneakPeekStyle: String, CaseIterable, Identifiable, Defaults.Serializable {
     var id: String { self.rawValue }
 }
 
+// Transition style for music/Claude swap in the closed notch
+enum NotchTransitionStyle: String, CaseIterable, Identifiable, Defaults.Serializable {
+    case crossFadeScale = "Cross-fade + Scale"
+    case crossFade = "Cross-fade"
+    case slide = "Slide"
+    case quickSwap = "Quick swap"
+    case staggered = "Staggered"
+    case zStack = "ZStack"
+
+    var id: String { self.rawValue }
+}
+
 // Action to perform when Option (⌥) is held while pressing media keys
 enum OptionKeyAction: String, CaseIterable, Identifiable, Defaults.Serializable {
     case openSettings = "Open System Settings"
@@ -186,6 +198,7 @@ extension Defaults.Keys {
     // MARK: Claude Code
     static let enableClaudeCode = Key<Bool>("enableClaudeCode", default: true)
     static let enableClaudeCodeCollapsedView = Key<Bool>("enableClaudeCodeCollapsedView", default: true)
+    static let notchTransitionStyle = Key<NotchTransitionStyle>("notchTransitionStyle", default: .crossFadeScale)
 
     // MARK: Advanced Settings
     static let useCustomAccentColor = Key<Bool>("useCustomAccentColor", default: false)

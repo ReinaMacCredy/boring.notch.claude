@@ -48,6 +48,7 @@ struct ContentView: View {
     @Default(.useMusicVisualizer) var useMusicVisualizer
 
     @Default(.showNotHumanFace) var showNotHumanFace
+    @Default(.notchTransitionStyle) var notchTransitionStyle
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
@@ -121,6 +122,60 @@ struct ContentView: View {
         }
     }
 
+    private var claudeTransition: AnyTransition {
+        switch notchTransitionStyle {
+        case .crossFadeScale:
+            return .asymmetric(
+                insertion: .opacity,
+                removal: .opacity.combined(with: .scale(scale: 0.96))
+            )
+        case .crossFade, .zStack:
+            return .opacity
+        case .slide:
+            return .asymmetric(
+                insertion: .opacity.combined(with: .move(edge: .leading)),
+                removal: .opacity.combined(with: .move(edge: .trailing))
+            )
+        case .quickSwap:
+            return .opacity
+        case .staggered:
+            return .asymmetric(
+                insertion: .opacity.animation(.easeIn(duration: 0.3).delay(0.2)),
+                removal: .opacity.animation(.easeOut(duration: 0.25))
+            )
+        }
+    }
+
+    private var musicTransition: AnyTransition {
+        switch notchTransitionStyle {
+        case .crossFadeScale:
+            return .opacity.combined(with: .scale(scale: 0.96))
+        case .crossFade, .zStack:
+            return .opacity
+        case .slide:
+            return .asymmetric(
+                insertion: .opacity.combined(with: .move(edge: .trailing)),
+                removal: .opacity.combined(with: .move(edge: .leading))
+            )
+        case .quickSwap:
+            return .opacity
+        case .staggered:
+            return .asymmetric(
+                insertion: .opacity.animation(.easeIn(duration: 0.3).delay(0.2)),
+                removal: .opacity.animation(.easeOut(duration: 0.25))
+            )
+        }
+    }
+
+    private var contentSwapAnimation: Animation {
+        switch notchTransitionStyle {
+        case .quickSwap:
+            return .easeInOut(duration: 0.2)
+        default:
+            return .spring(response: 0.4, dampingFraction: 0.85)
+        }
+    }
+
     var body: some View {
         // Calculate scale based on gesture progress only
         let gestureScale: CGFloat = {
@@ -168,8 +223,8 @@ struct ContentView: View {
                             .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
                             .animation(openAnimation, value: vm.notchSize)
                             .animation(.smooth, value: gestureProgress)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isPlaying || !musicManager.isPlayerIdle)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicPeekActive)
+                            .animation(contentSwapAnimation, value: musicManager.isPlaying || !musicManager.isPlayerIdle)
+                            .animation(contentSwapAnimation, value: musicPeekActive)
                     }
                     .contentShape(Rectangle())
                     .onHover { hovering in
@@ -241,8 +296,8 @@ struct ContentView: View {
                     Rectangle()
                         .fill(Color.black.opacity(0.01))
                         .frame(width: computedChinWidth, height: vm.chinHeight)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isPlaying || !musicManager.isPlayerIdle)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicPeekActive)
+                        .animation(contentSwapAnimation, value: musicManager.isPlaying || !musicManager.isPlayerIdle)
+                        .animation(contentSwapAnimation, value: musicPeekActive)
                 }
             }
         }
@@ -409,14 +464,11 @@ struct ContentView: View {
                                 closedNotchSize: vm.closedNotchSize,
                                 effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
                             )
-                            .transition(.asymmetric(
-                                insertion: .opacity,
-                                removal: .opacity.combined(with: .scale(scale: 0.96))
-                            ))
+                            .transition(claudeTransition)
                       } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
                           MusicLiveActivity()
                               .frame(alignment: .center)
-                              .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                              .transition(musicTransition)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {

@@ -1026,6 +1026,7 @@ struct Shelf: View {
 struct ClaudeCodeSettings: View {
     @StateObject private var sessionMonitor = ClaudeSessionMonitor()
     @Default(.enableClaudeCode) var enableClaudeCode
+    @Default(.notchTransitionStyle) var notchTransitionStyle
 
     var body: some View {
         Form {
@@ -1080,6 +1081,25 @@ struct ClaudeCodeSettings: View {
                             HookInstaller.installIfNeeded()
                         }
                     }
+                    .disabled(!enableClaudeCode)
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Transition style")
+                            .font(.headline)
+                        Text("Animation when switching between music and Claude in the closed notch.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 40)
+                    Picker("", selection: $notchTransitionStyle) {
+                        ForEach(NotchTransitionStyle.allCases) { style in
+                            Text(style.rawValue).tag(style)
+                        }
+                    }
+                    .labelsHidden()
                     .disabled(!enableClaudeCode)
                 }
             } header: {

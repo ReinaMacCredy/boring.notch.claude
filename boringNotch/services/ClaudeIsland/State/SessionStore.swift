@@ -167,13 +167,15 @@ actor SessionStore {
     }
 
     private func createSession(from event: HookEvent) -> SessionState {
-        SessionState(
+        let stored = UserDefaults.standard.dictionary(forKey: Self.customNamesKey) as? [String: String]
+        return SessionState(
             sessionId: event.sessionId,
             cwd: event.cwd,
             projectName: URL(fileURLWithPath: event.cwd).lastPathComponent,
             pid: event.pid,
             tty: event.tty?.replacingOccurrences(of: "/dev/", with: ""),
             isInTmux: false,  // Will be updated
+            customName: stored?[event.sessionId],
             phase: .idle
         )
     }
@@ -838,10 +840,22 @@ actor SessionStore {
 
     // MARK: - Session Rename
 
+    private static let customNamesKey = "sessionCustomNames"
+
     private func processSessionRenamed(sessionId: String, name: String?) {
         guard sessions[sessionId] != nil else { return }
         let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
-        sessions[sessionId]?.customName = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        let customName = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        sessions[sessionId]?.customName = customName
+
+        // Persist to UserDefaults
+        var stored = UserDefaults.standard.dictionary(forKey: Self.customNamesKey) as? [String: String] ?? [:]
+        if let customName {
+            stored[sessionId] = customName
+        } else {
+            stored.removeValue(forKey: sessionId)
+        }
+        UserDefaults.standard.set(stored, forKey: Self.customNamesKey)
     }
 
     // MARK: - Session End Processing
@@ -849,6 +863,12 @@ actor SessionStore {
     private func processSessionEnd(sessionId: String) async {
         sessions.removeValue(forKey: sessionId)
         cancelPendingSync(sessionId: sessionId)
+
+        // Clean up persisted custom name
+        var stored = UserDefaults.standard.dictionary(forKey: Self.customNamesKey) as? [String: String] ?? [:]
+        if stored.removeValue(forKey: sessionId) != nil {
+            UserDefaults.standard.set(stored, forKey: Self.customNamesKey)
+        }
     }
 
     // MARK: - History Loading

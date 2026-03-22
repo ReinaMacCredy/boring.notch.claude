@@ -103,11 +103,16 @@ class ClaudeSessionMonitor: ObservableObject {
             }
 
             // Send "ask" -- hook exits without a decision, CLI shows interactive prompt.
-            // Don't call permissionApproved -- the session stays in waitingForApproval
-            // until the user answers in the terminal, which triggers a natural state transition.
             HookSocketServer.shared.respondToPermission(
                 toolUseId: permission.toolUseId,
                 decision: "ask"
+            )
+
+            // Clear approval state so UI stops showing the stale permission.
+            // The socket is already closed; leaving phase as .waitingForApproval
+            // causes subsequent button taps to target a dead socket.
+            await SessionStore.shared.process(
+                .permissionApproved(sessionId: sessionId, toolUseId: permission.toolUseId)
             )
         }
     }

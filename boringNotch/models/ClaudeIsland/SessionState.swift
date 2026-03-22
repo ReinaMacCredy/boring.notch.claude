@@ -23,6 +23,9 @@ struct SessionState: Equatable, Identifiable, Sendable {
     var tty: String?
     var isInTmux: Bool
 
+    /// User-assigned custom name (overrides auto-derived title)
+    var customName: String?
+
     // MARK: - State Machine
 
     /// Current phase in the session lifecycle
@@ -71,6 +74,7 @@ struct SessionState: Equatable, Identifiable, Sendable {
         pid: Int? = nil,
         tty: String? = nil,
         isInTmux: Bool = false,
+        customName: String? = nil,
         phase: SessionPhase = .idle,
         chatItems: [ChatHistoryItem] = [],
         toolTracker: ToolTracker = ToolTracker(),
@@ -89,6 +93,7 @@ struct SessionState: Equatable, Identifiable, Sendable {
         self.pid = pid
         self.tty = tty
         self.isInTmux = isInTmux
+        self.customName = customName
         self.phase = phase
         self.chatItems = chatItems
         self.toolTracker = toolTracker
@@ -124,9 +129,9 @@ struct SessionState: Equatable, Identifiable, Sendable {
         return sessionId
     }
 
-    /// Display title: summary > first user message > project name
+    /// Display title: custom name > summary > first user message > project name
     var displayTitle: String {
-        conversationInfo.summary ?? conversationInfo.firstUserMessage ?? projectName
+        customName ?? conversationInfo.summary ?? conversationInfo.firstUserMessage ?? projectName
     }
 
     /// Best hint for matching window title

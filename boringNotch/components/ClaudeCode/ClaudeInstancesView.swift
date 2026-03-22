@@ -75,7 +75,8 @@ struct ClaudeInstancesView: View {
                         onChat: { openChat(session) },
                         onArchive: { archiveSession(session) },
                         onApprove: { approveSession(session) },
-                        onReject: { rejectSession(session) }
+                        onReject: { rejectSession(session) },
+                        onRename: { name in renameSession(session, name: name) }
                     )
                     .id(session.stableId)
                 }
@@ -114,6 +115,10 @@ struct ClaudeInstancesView: View {
     private func archiveSession(_ session: SessionState) {
         sessionMonitor.archiveSession(sessionId: session.sessionId)
     }
+
+    private func renameSession(_ session: SessionState, name: String?) {
+        sessionMonitor.renameSession(sessionId: session.sessionId, name: name)
+    }
 }
 
 // MARK: - Instance Row
@@ -125,8 +130,11 @@ struct InstanceRow: View {
     let onArchive: () -> Void
     let onApprove: () -> Void
     let onReject: () -> Void
+    let onRename: (String) -> Void
 
     @State private var isHovered = false
+    @State private var isRenaming = false
+    @State private var editingName = ""
     @State private var spinnerPhase = 0
     @State private var isYabaiAvailable = false
 
@@ -257,6 +265,12 @@ struct InstanceRow: View {
                         onChat()
                     }
 
+                    // Rename button
+                    IconButton(icon: "pencil") {
+                        editingName = session.displayTitle
+                        isRenaming = true
+                    }
+
                     // Focus icon (only for tmux instances with yabai)
                     if session.isInTmux && isYabaiAvailable {
                         IconButton(icon: "eye") {
@@ -278,8 +292,10 @@ struct InstanceRow: View {
         .padding(.trailing, 14)
         .padding(.vertical, 10)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            onChat()
+        .onTapGesture {
+            if !isRenaming {
+                onChat()
+            }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isWaitingForApproval)
         .background(
@@ -287,6 +303,29 @@ struct InstanceRow: View {
                 .fill(isHovered ? Color.white.opacity(0.06) : Color.clear)
         )
         .onHover { isHovered = $0 }
+        .contextMenu {
+            Button("Rename...") {
+                editingName = session.displayTitle
+                isRenaming = true
+            }
+            if session.customName != nil {
+                Button("Reset Name") {
+                    onRename("")
+                }
+            }
+            Divider()
+            Button("Open Chat") { onChat() }
+            Divider()
+            Button("Archive") { onArchive() }
+        }
+        .popover(isPresented: $isRenaming, arrowEdge: .bottom) {
+            RenameField(name: $editingName, onSubmit: { newName in
+                onRename(newName)
+                isRenaming = false
+            }, onCancel: {
+                isRenaming = false
+            })
+        }
         .task {
             isYabaiAvailable = await WindowFinder.shared.isYabaiAvailable()
         }
@@ -466,5 +505,30 @@ struct TerminalButton: View {
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Rename Field (popover content)
+
+struct RenameField: View {
+    @Binding var name: String
+    let onSubmit: (String) -> Void
+    let onCancel: () -> Void
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        TextField("Session name", text: $name)
+            .textFieldStyle(.plain)
+            .font(.system(size: 13, weight: .medium))
+            .focused($isFocused)
+            .onSubmit { onSubmit(name) }
+            .onExitCommand { onCancel() }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    isFocused = true
+                }
+            }
+            .frame(width: 200)
+            .padding(8)
     }
 }

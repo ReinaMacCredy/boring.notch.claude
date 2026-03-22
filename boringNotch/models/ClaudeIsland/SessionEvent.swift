@@ -67,6 +67,9 @@ enum SessionEvent: Sendable {
 
     // MARK: - Session Lifecycle
 
+    /// User renamed a session (nil clears custom name)
+    case sessionRenamed(sessionId: String, name: String?)
+
     /// Session has ended
     case sessionEnded(sessionId: String)
 
@@ -197,6 +200,8 @@ extension SessionEvent: CustomStringConvertible {
             return "interruptDetected(session: \(sessionId.prefix(8)))"
         case .clearDetected(let sessionId):
             return "clearDetected(session: \(sessionId.prefix(8)))"
+        case .sessionRenamed(let sessionId, let name):
+            return "sessionRenamed(session: \(sessionId.prefix(8)), name: \(name ?? "<cleared>"))"
         case .sessionEnded(let sessionId):
             return "sessionEnded(session: \(sessionId.prefix(8)))"
         case .loadHistory(let sessionId, _):

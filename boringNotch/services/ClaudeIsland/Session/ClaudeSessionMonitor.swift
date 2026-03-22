@@ -114,6 +114,13 @@ class ClaudeSessionMonitor: ObservableObject {
         }
     }
 
+    /// Rename a session (nil clears custom name)
+    func renameSession(sessionId: String, name: String?) {
+        Task {
+            await SessionStore.shared.process(.sessionRenamed(sessionId: sessionId, name: name))
+        }
+    }
+
     /// Archive (remove) a session from the instances list
     func archiveSession(sessionId: String) {
         Task {

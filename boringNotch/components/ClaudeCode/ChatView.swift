@@ -220,6 +220,8 @@ struct ChatView: View {
 
     @State private var isHeaderHovered = false
     @State private var isPinHovered = false
+    @State private var isRenamingHeader = false
+    @State private var headerEditName = ""
 
     private var chatHeader: some View {
         HStack(spacing: 0) {
@@ -240,6 +242,25 @@ struct ChatView: View {
             }
             .buttonStyle(.plain)
             .onHover { isHeaderHovered = $0 }
+            .contextMenu {
+                Button("Rename...") {
+                    headerEditName = session.displayTitle
+                    isRenamingHeader = true
+                }
+                if session.customName != nil {
+                    Button("Reset Name") {
+                        sessionMonitor.renameSession(sessionId: sessionId, name: nil)
+                    }
+                }
+            }
+            .popover(isPresented: $isRenamingHeader, arrowEdge: .bottom) {
+                RenameField(name: $headerEditName, onSubmit: { newName in
+                    sessionMonitor.renameSession(sessionId: sessionId, name: newName)
+                    isRenamingHeader = false
+                }, onCancel: {
+                    isRenamingHeader = false
+                })
+            }
 
             Spacer()
 

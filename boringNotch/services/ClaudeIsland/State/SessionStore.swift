@@ -71,6 +71,9 @@ actor SessionStore {
         case .clearDetected(let sessionId):
             await processClearDetected(sessionId: sessionId)
 
+        case .sessionRenamed(let sessionId, let name):
+            processSessionRenamed(sessionId: sessionId, name: name)
+
         case .sessionEnded(let sessionId):
             await processSessionEnd(sessionId: sessionId)
 
@@ -831,6 +834,14 @@ actor SessionStore {
         sessions[sessionId] = session
 
         Self.logger.info("/clear processed for session \(sessionId.prefix(8), privacy: .public) - marked for reconciliation")
+    }
+
+    // MARK: - Session Rename
+
+    private func processSessionRenamed(sessionId: String, name: String?) {
+        guard sessions[sessionId] != nil else { return }
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        sessions[sessionId]?.customName = (trimmed?.isEmpty ?? true) ? nil : trimmed
     }
 
     // MARK: - Session End Processing

@@ -89,6 +89,9 @@ struct ChatView: View {
                 // Header
                 chatHeader
 
+                // Usage stats
+                UsageStatsView(usageService: .shared)
+
                 // Messages
                 if isLoading {
                     loadingState

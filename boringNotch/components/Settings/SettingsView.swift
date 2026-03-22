@@ -1147,6 +1147,7 @@ struct ClaudeCodeSettings: View {
                     }
                     Spacer(minLength: 40)
                     Picker("", selection: $usageThresholdStep) {
+                        Text("Every 5%").tag(5.0)
                         Text("Every 10%").tag(10.0)
                         Text("Every 20%").tag(20.0)
                         Text("Every 25%").tag(25.0)

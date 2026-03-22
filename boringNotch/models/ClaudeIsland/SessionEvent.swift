@@ -138,10 +138,11 @@ extension HookEvent {
         }
 
         // Permission request creates waitingForApproval state
-        if expectsResponse, let tool = tool {
+        // Use tool ?? "Unknown" -- a nil tool name is better than silently dropping
+        if expectsResponse {
             return .waitingForApproval(PermissionContext(
                 toolUseId: toolUseId ?? "",
-                toolName: tool,
+                toolName: tool ?? "Unknown",
                 toolInput: toolInput,
                 receivedAt: Date()
             ))
@@ -158,6 +159,14 @@ extension HookEvent {
             return .processing
         case "compacting":
             return .compacting
+        case "waiting_for_approval":
+            // Safety net: if expectsResponse was false but status says waiting
+            return .waitingForApproval(PermissionContext(
+                toolUseId: toolUseId ?? "",
+                toolName: tool ?? "Unknown",
+                toolInput: toolInput,
+                receivedAt: Date()
+            ))
         case "ended":
             return .ended
         default:

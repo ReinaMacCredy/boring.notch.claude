@@ -425,10 +425,9 @@ class HookSocketServer {
             } else if let cachedToolUseId = popCachedToolUseId(event: event) {
                 toolUseId = cachedToolUseId
             } else {
-                logger.warning("Permission request missing tool_use_id for \(event.sessionId.prefix(8), privacy: .public) - no cache hit")
-                close(clientSocket)
-                eventHandler?(event)
-                return
+                // Fallback: generate an ID so the socket stays open for response
+                toolUseId = "\(event.sessionId)-\(Int(Date().timeIntervalSince1970))"
+                logger.warning("Permission request missing tool_use_id for \(event.sessionId.prefix(8), privacy: .public) - using fallback: \(toolUseId.prefix(20), privacy: .public)")
             }
 
             logger.debug("Permission request - keeping socket open for \(event.sessionId.prefix(8), privacy: .public) tool:\(toolUseId.prefix(12), privacy: .public)")

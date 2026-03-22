@@ -124,7 +124,10 @@ def main():
         state["status"] = "waiting_for_approval"
         state["tool"] = data.get("tool_name")
         state["tool_input"] = tool_input
-        # tool_use_id lookup handled by Swift-side cache from PreToolUse
+        # Forward tool_use_id directly (eliminates cache dependency)
+        tool_use_id_from_event = data.get("tool_use_id")
+        if tool_use_id_from_event:
+            state["tool_use_id"] = tool_use_id_from_event
 
         # Send to app and wait for decision (blocks until user responds in boring.notch)
         response = send_event(state)

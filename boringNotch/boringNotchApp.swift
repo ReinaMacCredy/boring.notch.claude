@@ -28,6 +28,9 @@ struct DynamicNotchApp: App {
 
         // Initialize the settings window controller with the updater controller
         SettingsWindowController.shared.setUpdaterController(updaterController)
+
+        // Eagerly init UsageService so token data is ready when notch opens
+        _ = UsageService.shared
     }
 
     var body: some Scene {

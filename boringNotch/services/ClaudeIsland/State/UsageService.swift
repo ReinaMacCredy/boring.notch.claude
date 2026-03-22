@@ -9,6 +9,9 @@
 import Combine
 import Defaults
 import Foundation
+import os.log
+
+private let usageLog = Logger(subsystem: "theboringteam.boringnotch", category: "UsageService")
 
 // MARK: - Usage Data Models
 
@@ -167,56 +170,35 @@ final class UsageService: ObservableObject {
             return f.string(from: Date())
         }()
 
-        // Run on background thread -- ccusage takes ~13s to parse JSONL files
-        let result: TokenUsageData? = await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-                process.arguments = ["-lc", "ccusage daily --since \(today) --json"]
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = Pipe()
+        // Run ccusage via XPC helper (outside App Sandbox).
+        // The sandbox blocks process-exec of user-installed binaries like ccusage.
+        let command = "ccusage daily --since \(today) --json"
+        let (data, exitCode) = await XPCHelperClient.shared.runShellCommand(command)
 
-                do {
-                    try process.run()
-                } catch {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                process.waitUntilExit()
-
-                guard process.terminationStatus == 0 else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let daily = json["daily"] as? [[String: Any]],
-                      let first = daily.first
-                else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let totalTokens: Int
-                if let t = first["totalTokens"] as? Int { totalTokens = t }
-                else if let t = first["totalTokens"] as? Double { totalTokens = Int(t) }
-                else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-
-                let totalCost: Double
-                if let c = first["totalCost"] as? Double { totalCost = c }
-                else if let c = first["totalCost"] as? Int { totalCost = Double(c) }
-                else { totalCost = 0 }
-
-                continuation.resume(returning: TokenUsageData(totalTokens: totalTokens, totalCost: totalCost))
-            }
+        guard exitCode == 0, let data = data else {
+            usageLog.info("ccusage failed with exit code \(exitCode)")
+            return
         }
 
-        self.tokenUsage = result
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let daily = json["daily"] as? [[String: Any]],
+              let first = daily.first
+        else {
+            usageLog.info("ccusage returned invalid JSON (\(data.count) bytes)")
+            return
+        }
+
+        let totalTokens: Int
+        if let t = first["totalTokens"] as? Int { totalTokens = t }
+        else if let t = first["totalTokens"] as? Double { totalTokens = Int(t) }
+        else { return }
+
+        let totalCost: Double
+        if let c = first["totalCost"] as? Double { totalCost = c }
+        else if let c = first["totalCost"] as? Int { totalCost = Double(c) }
+        else { totalCost = 0 }
+
+        self.tokenUsage = TokenUsageData(totalTokens: totalTokens, totalCost: totalCost)
     }
 
     // MARK: - Credentials

@@ -256,6 +256,26 @@ final class XPCHelperClient: NSObject {
             return false
         }
     }
+
+    // MARK: - Shell Command Execution
+
+    /// Run a shell command via the XPC helper (outside App Sandbox).
+    /// Returns (stdout data, exit code). On XPC failure returns (nil, -1).
+    nonisolated func runShellCommand(_ command: String) async -> (Data?, Int32) {
+        do {
+            let service = await MainActor.run {
+                ensureRemoteService()
+            }
+            let result: (NSData?, NSNumber) = try await service.withContinuation { service, continuation in
+                service.runShellCommand(command) { data, exitCode in
+                    continuation.resume(returning: (data, exitCode))
+                }
+            }
+            return (result.0 as Data?, result.1.int32Value)
+        } catch {
+            return (nil, -1)
+        }
+    }
 }
 
 extension Notification.Name {

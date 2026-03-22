@@ -66,8 +66,8 @@ struct UsageStatsView: View {
                 )
             }
 
-            // Extra usage credits
-            if let extra = usage.extraUsage, extra.isEnabled {
+            // Extra usage credits (show whenever data exists)
+            if let extra = usage.extraUsage {
                 creditsPill(used: extra.usedCredits, limit: extra.monthlyLimit)
             }
 

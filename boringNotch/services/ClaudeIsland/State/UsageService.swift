@@ -256,10 +256,20 @@ final class UsageService: ObservableObject {
 
         var extraUsage: ExtraUsage?
         if let extra = json["extra_usage"] as? [String: Any] {
+            let used: Double
+            if let d = extra["used_credits"] as? Double { used = d }
+            else if let i = extra["used_credits"] as? Int { used = Double(i) }
+            else { used = 0 }
+
+            let limit: Double
+            if let d = extra["monthly_limit"] as? Double { limit = d }
+            else if let i = extra["monthly_limit"] as? Int { limit = Double(i) }
+            else { limit = 0 }
+
             extraUsage = ExtraUsage(
                 isEnabled: extra["is_enabled"] as? Bool ?? false,
-                usedCredits: extra["used_credits"] as? Double ?? 0,
-                monthlyLimit: extra["monthly_limit"] as? Double ?? 0
+                usedCredits: used,
+                monthlyLimit: limit
             )
         }
 
@@ -276,12 +286,31 @@ final class UsageService: ObservableObject {
         guard let dict = dict else {
             return UsageWindow(utilization: 0, resetsAt: nil)
         }
-        let util = dict["utilization"] as? Double ?? 0
+        // utilization can arrive as Int or Double
+        let util: Double
+        if let d = dict["utilization"] as? Double {
+            util = d
+        } else if let i = dict["utilization"] as? Int {
+            util = Double(i)
+        } else {
+            util = 0
+        }
+
         var resetsAt: Date?
         if let ts = dict["resets_at"] as? String {
-            resetsAt = ISO8601DateFormatter().date(from: ts)
+            // Try ISO8601 with fractional seconds first
+            let fmtFrac = ISO8601DateFormatter()
+            fmtFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = fmtFrac.date(from: ts) {
+                resetsAt = d
+            } else {
+                // Fallback: standard ISO8601
+                resetsAt = ISO8601DateFormatter().date(from: ts)
+            }
         } else if let ts = dict["resets_at"] as? Double {
             resetsAt = Date(timeIntervalSince1970: ts)
+        } else if let ts = dict["resets_at"] as? Int {
+            resetsAt = Date(timeIntervalSince1970: TimeInterval(ts))
         }
         return UsageWindow(utilization: util, resetsAt: resetsAt)
     }

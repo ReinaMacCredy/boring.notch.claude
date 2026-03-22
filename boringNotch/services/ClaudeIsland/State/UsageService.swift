@@ -162,45 +162,88 @@ final class UsageService: ObservableObject {
     }
 
     // MARK: - Token Usage (ccusage)
-
+  
     private func fetchTokenUsage() async {
-        let today = {
-            let f = DateFormatter()
-            f.dateFormat = "yyyyMMdd"
-            return f.string(from: Date())
-        }()
+        let today = formattedCCUsageDate(for: Date())
+        let result = await XPCHelperClient.shared.fetchCCUsageDailyJSON(since: today)
 
-        // Run ccusage via XPC helper (outside App Sandbox).
-        // The sandbox blocks process-exec of user-installed binaries like ccusage.
-        let command = "ccusage daily --since \(today) --json"
-        let (data, exitCode) = await XPCHelperClient.shared.runShellCommand(command)
-
-        guard exitCode == 0, let data = data else {
-            usageLog.info("ccusage failed with exit code \(exitCode)")
+        guard result.isSuccess, let data = result.stdout else {
+            usageLog.error(
+                "ccusage failed: exitCode=\(result.exitCode), path=\(result.resolvedExecutablePath ?? "unresolved", privacy: .public), stderr=\(result.stderrSnippet, privacy: .public)"
+            )
             return
         }
 
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let daily = json["daily"] as? [[String: Any]],
-              let first = daily.first
-        else {
-            usageLog.info("ccusage returned invalid JSON (\(data.count) bytes)")
+        guard let parsedTokenUsage = parseTokenUsage(from: data) else {
+            usageLog.error(
+                "ccusage returned invalid JSON: bytes=\(data.count), path=\(result.resolvedExecutablePath ?? "unresolved", privacy: .public), stderr=\(result.stderrSnippet, privacy: .public)"
+            )
             return
         }
 
-        let totalTokens: Int
-        if let t = first["totalTokens"] as? Int { totalTokens = t }
-        else if let t = first["totalTokens"] as? Double { totalTokens = Int(t) }
-        else { return }
-
-        let totalCost: Double
-        if let c = first["totalCost"] as? Double { totalCost = c }
-        else if let c = first["totalCost"] as? Int { totalCost = Double(c) }
-        else { totalCost = 0 }
-
-        self.tokenUsage = TokenUsageData(totalTokens: totalTokens, totalCost: totalCost)
+        self.tokenUsage = parsedTokenUsage
     }
 
+    private func formattedCCUsageDate(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter.string(from: date)
+    }
+
+    private func parseTokenUsage(from data: Data) -> TokenUsageData? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+
+        if let totals = json["totals"] as? [String: Any],
+           let totalTokens = integerValue(from: totals["totalTokens"]) {
+            return TokenUsageData(
+                totalTokens: totalTokens,
+                totalCost: doubleValue(from: totals["totalCost"]) ?? 0
+            )
+        }
+
+        if let daily = json["daily"] as? [[String: Any]],
+           let first = daily.first,
+           let totalTokens = integerValue(from: first["totalTokens"]) {
+            return TokenUsageData(
+                totalTokens: totalTokens,
+                totalCost: doubleValue(from: first["totalCost"]) ?? 0
+            )
+        }
+
+        return nil
+    }
+
+    private func integerValue(from value: Any?) -> Int? {
+        switch value {
+        case let int as Int:
+            return int
+        case let double as Double:
+            return Int(double)
+        case let number as NSNumber:
+            return number.intValue
+        default:
+            return nil
+        }
+    }
+
+    private func doubleValue(from value: Any?) -> Double? {
+        switch value {
+        case let double as Double:
+            return double
+        case let int as Int:
+            return Double(int)
+        case let number as NSNumber:
+            return number.doubleValue
+        default:
+            return nil
+        }
+    }
+  
     // MARK: - Credentials
 
     private struct OAuthCredentials {
@@ -419,4 +462,3 @@ enum UsageError: LocalizedError {
         }
     }
 }
-

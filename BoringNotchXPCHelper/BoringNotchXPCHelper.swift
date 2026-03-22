@@ -9,9 +9,15 @@ import Foundation
 import ApplicationServices
 import IOKit
 import CoreGraphics
+import Darwin
 
 class BoringNotchXPCHelper: NSObject, BoringNotchXPCHelperProtocol {
-    
+    private let ccusageTimeout: TimeInterval = 30
+    private let ccusageSuccessExitCode: Int32 = 0
+    private let ccusageTimeoutExitCode: Int32 = 124
+    private let ccusageLaunchFailureExitCode: Int32 = -1
+    private let ccusageKillWaitSeconds: TimeInterval = 2
+      
     @objc func isAccessibilityAuthorized(with reply: @escaping (Bool) -> Void) {
         reply(AXIsProcessTrusted())
     }
@@ -153,30 +159,168 @@ class BoringNotchXPCHelper: NSObject, BoringNotchXPCHelperProtocol {
         reply(false)
     }
 
-    // MARK: - Shell Command Execution
+    // MARK: - ccusage Execution
 
-    @objc func runShellCommand(_ command: String, with reply: @escaping (NSData?, NSNumber) -> Void) {
+    @objc func fetchCCUsageDailyJSON(since sinceDate: String, with reply: @escaping (NSData?, NSData?, NSNumber, NSString?) -> Void) {
         DispatchQueue.global(qos: .utility).async {
+            guard Self.isValidCCUsageDate(sinceDate) else {
+                let stderr = Data("Invalid ccusage date: \(sinceDate)".utf8)
+                reply(nil, stderr as NSData, NSNumber(value: self.ccusageLaunchFailureExitCode), nil)
+                return
+            }
+
+            let environment = self.makeCCUsageEnvironment()
+            guard let executablePath = self.resolveCCUsageExecutable(using: environment) else {
+                let stderr = Data("Unable to resolve ccusage executable".utf8)
+                reply(nil, stderr as NSData, NSNumber(value: self.ccusageLaunchFailureExitCode), nil)
+                return
+            }
+
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = ["-lc", command]
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            process.standardError = Pipe()
+            process.executableURL = URL(fileURLWithPath: executablePath)
+            process.arguments = ["daily", "--since", sinceDate, "--json"]
+            process.environment = environment
+
+            let stdoutPipe = Pipe()
+            let stderrPipe = Pipe()
+            process.standardOutput = stdoutPipe
+            process.standardError = stderrPipe
 
             do {
                 try process.run()
             } catch {
-                reply(nil, NSNumber(value: Int32(-1)))
+                let stderr = Data("Failed to launch ccusage at \(executablePath): \(error.localizedDescription)".utf8)
+                reply(nil, stderr as NSData, NSNumber(value: self.ccusageLaunchFailureExitCode), executablePath as NSString)
                 return
             }
 
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            reply(data as NSData, NSNumber(value: process.terminationStatus))
+            let readGroup = DispatchGroup()
+            let readQueue = DispatchQueue.global(qos: .utility)
+            var stdoutData = Data()
+            var stderrData = Data()
+
+            readGroup.enter()
+            readQueue.async {
+                stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                readGroup.leave()
+            }
+
+            readGroup.enter()
+            readQueue.async {
+                stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                readGroup.leave()
+            }
+
+            let exitSemaphore = DispatchSemaphore(value: 0)
+            readQueue.async {
+                process.waitUntilExit()
+                exitSemaphore.signal()
+            }
+
+            let timedOut = exitSemaphore.wait(timeout: .now() + self.ccusageTimeout) == .timedOut
+            if timedOut {
+                self.terminate(process)
+                let timeoutMessage = "ccusage timed out after \(Int(self.ccusageTimeout)) seconds"
+                if !stderrData.isEmpty {
+                    stderrData.append(Data("\n".utf8))
+                }
+                stderrData.append(Data(timeoutMessage.utf8))
+            }
+
+            _ = readGroup.wait(timeout: .now() + self.ccusageKillWaitSeconds)
+
+            let exitCode = timedOut ? self.ccusageTimeoutExitCode : process.terminationStatus
+            reply(stdoutData as NSData, stderrData as NSData, NSNumber(value: exitCode), executablePath as NSString)
         }
     }
 
+    private static func isValidCCUsageDate(_ sinceDate: String) -> Bool {
+        sinceDate.count == 8 && sinceDate.allSatisfy(\.isNumber)
+    }
+
+    private func makeCCUsageEnvironment() -> [String: String] {
+        let processEnvironment = ProcessInfo.processInfo.environment
+        let home = nonEmpty(processEnvironment["HOME"]) ?? NSHomeDirectory()
+        let user = nonEmpty(processEnvironment["USER"]) ?? NSUserName()
+        let logname = nonEmpty(processEnvironment["LOGNAME"]) ?? user
+
+        var pathComponents = [
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(home)/.local/bin",
+            "\(home)/.bun/bin",
+            "\(home)/.cargo/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin"
+        ]
+
+        if let inheritedPath = nonEmpty(processEnvironment["PATH"]) {
+            for component in inheritedPath.split(separator: ":").map(String.init) where !pathComponents.contains(component) {
+                pathComponents.append(component)
+            }
+        }
+
+        return [
+            "HOME": home,
+            "USER": user,
+            "LOGNAME": logname,
+            "PATH": pathComponents.joined(separator: ":"),
+            "LANG": "en_US_POSIX.UTF-8",
+            "LC_ALL": "en_US_POSIX.UTF-8"
+        ]
+    }
+
+    private func resolveCCUsageExecutable(using environment: [String: String]) -> String? {
+        let home = environment["HOME"] ?? NSHomeDirectory()
+        let preferredPaths = [
+            "/opt/homebrew/bin/ccusage",
+            "/usr/local/bin/ccusage",
+            "\(home)/.local/bin/ccusage",
+            "\(home)/.bun/bin/ccusage",
+            "\(home)/.cargo/bin/ccusage"
+        ]
+
+        let fileManager = FileManager.default
+        for path in preferredPaths where fileManager.isExecutableFile(atPath: path) {
+            return path
+        }
+
+        let searchedDirectories = (environment["PATH"] ?? "")
+            .split(separator: ":")
+            .map(String.init)
+
+        for directory in searchedDirectories {
+            let path = (directory as NSString).appendingPathComponent("ccusage")
+            if fileManager.isExecutableFile(atPath: path) {
+                return path
+            }
+        }
+
+        return nil
+    }
+
+    private func terminate(_ process: Process) {
+        process.terminate()
+        let didExit = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .utility).async {
+            process.waitUntilExit()
+            didExit.signal()
+        }
+
+        if didExit.wait(timeout: .now() + ccusageKillWaitSeconds) == .timedOut, process.isRunning {
+            kill(process.processIdentifier, SIGKILL)
+        }
+    }
+
+    private func nonEmpty(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return trimmed
+    }
+  
     // MARK: - Private helpers for DisplayServices / IOKit access
     private func displayServicesGetBrightness(displayID: CGDirectDisplayID, out: inout Float) -> Bool {
         guard let sym = dlsym(DisplayServicesHandle.handle, "DisplayServicesGetBrightness") else { return false }

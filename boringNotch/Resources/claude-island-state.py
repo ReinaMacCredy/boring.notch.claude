@@ -126,13 +126,7 @@ def main():
         state["tool_input"] = tool_input
         # tool_use_id lookup handled by Swift-side cache from PreToolUse
 
-        # AskUserQuestion: notify app for UI preview, but let CLI handle interactively
-        tool_name = data.get("tool_name", "")
-        if tool_name == "AskUserQuestion":
-            send_event(state)  # notify app (non-blocking, no response waited)
-            sys.exit(0)  # no output = CLI shows its normal interactive prompt
-
-        # Send to app and wait for decision
+        # Send to app and wait for decision (blocks until user responds in boring.notch)
         response = send_event(state)
 
         if response:

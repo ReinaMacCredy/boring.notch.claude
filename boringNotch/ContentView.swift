@@ -239,9 +239,10 @@ struct ContentView: View {
                                 handleDownGesture(translation: translation, phase: phase)
                             }
                     }
-                    .conditionalModifier(Defaults[.closeGestureEnabled] && Defaults[.enableGestures] && coordinator.currentView != .claudeCode) { view in
+                    .conditionalModifier(Defaults[.closeGestureEnabled] && Defaults[.enableGestures]) { view in
                         view
                             .panGesture(direction: .up) { translation, phase in
+                                guard coordinator.currentView != .claudeCode else { return }
                                 handleUpGesture(translation: translation, phase: phase)
                             }
                     }
@@ -557,6 +558,7 @@ struct ContentView: View {
                         {
                             AskUserQuestionView(
                                 sessionMonitor: claudeSessionMonitor,
+                                claudeVM: claudeVM,
                                 session: askSession,
                                 onFocus: { session in
                                     guard session.isInTmux, let pid = session.pid else { return }
@@ -565,6 +567,7 @@ struct ContentView: View {
                                     }
                                 },
                                 onDismiss: {
+                                    claudeVM.isPinned = false
                                     vm.close()
                                 }
                             )
@@ -869,12 +872,18 @@ struct ContentView: View {
             displayedPermissionSession = approvalSession
             hasPendingPermissions = true
 
-            // AskUserQuestion: auto-open notch to show expanded question view
+            // AskUserQuestion: auto-open and auto-pin notch
             if approvalSession.pendingToolName == "AskUserQuestion" && vm.notchState == .closed {
                 coordinator.currentView = .home
+                claudeVM.isPinned = true
                 doOpen()
             }
             return
+        }
+
+        // Auto-unpin if AskUserQuestion was pinned
+        if displayedPermissionSession?.pendingToolName == "AskUserQuestion" {
+            claudeVM.isPinned = false
         }
 
         withAnimation(permissionDismissAnimation) {

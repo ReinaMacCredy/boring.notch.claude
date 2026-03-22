@@ -10,6 +10,7 @@ import SwiftUI
 
 struct AskUserQuestionView: View {
     @ObservedObject var sessionMonitor: ClaudeSessionMonitor
+    @ObservedObject var claudeVM: NotchViewModel
     let session: SessionState
     let onFocus: (SessionState) -> Void
     let onDismiss: () -> Void
@@ -79,6 +80,18 @@ struct AskUserQuestionView: View {
                     }
 
                     Spacer()
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            claudeVM.isPinned.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(claudeVM.isPinned ? .white : .white.opacity(0.3))
+                            .rotationEffect(.degrees(claudeVM.isPinned ? 0 : 45))
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 // Question

@@ -17,9 +17,16 @@ struct UsageStatsView: View {
         if usageService.isLoading && usage == .empty {
             loadingState
         } else if usage != .empty {
-            pillsRow
+            HStack(spacing: 4) {
+                pillsRow
+
+                refreshButton
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+        } else if usageService.lastError != nil {
+            errorState
         }
-        // If usage is empty and not loading, show nothing (no credentials or API unavailable)
     }
 
     // MARK: - Loading
@@ -31,6 +38,32 @@ struct UsageStatsView: View {
                     .fill(Color.white.opacity(0.04))
                     .frame(width: 56, height: 24)
             }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
+    }
+
+    // MARK: - Error State
+
+    private var errorState: some View {
+        HStack(spacing: 6) {
+            Text(usageService.lastError ?? "Failed to load")
+                .font(.system(size: 9))
+                .foregroundColor(.white.opacity(0.3))
+                .lineLimit(1)
+
+            Button {
+                Task { await usageService.fetch() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundColor(.white.opacity(0.4))
+                    .padding(4)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 14)
@@ -74,9 +107,20 @@ struct UsageStatsView: View {
                 resetPill(date: resetDate)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 4)
+    }
+
+    // MARK: - Refresh Button
+
+    private var refreshButton: some View {
+        Button {
+            Task { await usageService.fetch() }
+        } label: {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(.white.opacity(0.2))
+                .padding(4)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Pill Components

@@ -10,6 +10,7 @@
 		093038039EC964BFD2526F73 /* EventMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F67C3AC42EBB588A3AB4CD /* EventMonitor.swift */; };
 		0C93E166A65E8EA57FE22439 /* NotchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8661C6E7125841891286E3CC /* NotchViewModel.swift */; };
 		0CF3F93FE154E07092131737 /* PermissionBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87C205009FBF440ECD4BA1D /* PermissionBannerView.swift */; };
+		29P2AD4ID4V1K2DDXTX7FZB3 /* AskUserQuestionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */; };
 		1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */; };
 		110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */; };
 		1100292A2E8691B400035A57 /* FileShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029292E8691B400035A57 /* FileShareView.swift */; };
@@ -376,6 +377,7 @@
 		A5F67C3AC42EBB588A3AB4CD /* EventMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EventMonitor.swift; sourceTree = "<group>"; };
 		A7A114D30A277770F802960A /* NotchActivityCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotchActivityCoordinator.swift; sourceTree = "<group>"; };
 		A87C205009FBF440ECD4BA1D /* PermissionBannerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PermissionBannerView.swift; sourceTree = "<group>"; };
+		7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AskUserQuestionView.swift; sourceTree = "<group>"; };
 		AA8A60393A9BA048B0A37833 /* ClaudeMenuView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeMenuView.swift; sourceTree = "<group>"; };
 		ABEC2FDECE06A08CF212ABC6 /* ChatHistoryManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatHistoryManager.swift; sourceTree = "<group>"; };
 		AE7DED90D78274B921E339DC /* AgentFileWatcher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AgentFileWatcher.swift; sourceTree = "<group>"; };
@@ -1015,6 +1017,7 @@
 				93F23B6E15D916B9A1B35D86 /* ClaudeCodeTabView.swift */,
 				D020A3479D506C0CF12808F5 /* ClaudeClosedView.swift */,
 				A87C205009FBF440ECD4BA1D /* PermissionBannerView.swift */,
+				7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */,
 			);
 			path = ClaudeCode;
 			sourceTree = "<group>";
@@ -1389,6 +1392,7 @@
 				7826C32E4F48F37FAC51D24D /* RealHomeDirectory.swift in Sources */,
 				DF299218976A8410F666F792 /* ClaudeClosedView.swift in Sources */,
 				0CF3F93FE154E07092131737 /* PermissionBannerView.swift in Sources */,
+				29P2AD4ID4V1K2DDXTX7FZB3 /* AskUserQuestionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

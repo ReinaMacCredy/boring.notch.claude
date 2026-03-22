@@ -54,6 +54,12 @@ struct ClaudeClosedView: View {
         sessionMonitor.instances.contains { $0.phase.isWaitingForApproval }
     }
 
+    private var isAskUserQuestion: Bool {
+        sessionMonitor.instances.contains { session in
+            session.phase.isWaitingForApproval && session.pendingToolName == "AskUserQuestion"
+        }
+    }
+
     private var hasWaitingForInput: Bool {
         // refreshTrigger forces re-evaluation after 30s timeout
         _ = refreshTrigger
@@ -117,7 +123,7 @@ struct ClaudeClosedView: View {
                 .frame(width: centerWidth)
 
             ZStack {
-                if displayedHasPendingPermission {
+                if displayedHasPendingPermission && !isAskUserQuestion {
                     PermissionIndicatorIcon(
                         size: 14,
                         color: Color(red: 0.85, green: 0.47, blue: 0.34)

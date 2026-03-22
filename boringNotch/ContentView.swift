@@ -239,7 +239,7 @@ struct ContentView: View {
                                 handleDownGesture(translation: translation, phase: phase)
                             }
                     }
-                    .conditionalModifier(Defaults[.closeGestureEnabled] && Defaults[.enableGestures]) { view in
+                    .conditionalModifier(Defaults[.closeGestureEnabled] && Defaults[.enableGestures] && coordinator.currentView != .claudeCode) { view in
                         view
                             .panGesture(direction: .up) { translation, phase in
                                 handleUpGesture(translation: translation, phase: phase)
@@ -517,8 +517,10 @@ struct ContentView: View {
                       }
 
                       // Permission drop-down banner -- same width as the notch
+                      // Skip for AskUserQuestion (uses expanded view instead)
                       if vm.notchState == .closed,
-                         let permissionSession = displayedPermissionSession
+                         let permissionSession = displayedPermissionSession,
+                         permissionSession.pendingToolName != "AskUserQuestion"
                       {
                           PermissionBannerView(
                               sessionMonitor: claudeSessionMonitor,
@@ -549,7 +551,26 @@ struct ContentView: View {
                 VStack {
                     switch coordinator.currentView {
                     case .home:
-                        NotchHomeView(albumArtNamespace: albumArtNamespace)
+                        if let askSession = displayedPermissionSession,
+                           askSession.pendingToolName == "AskUserQuestion",
+                           hasPendingPermissions
+                        {
+                            AskUserQuestionView(
+                                sessionMonitor: claudeSessionMonitor,
+                                session: askSession,
+                                onFocus: { session in
+                                    guard session.isInTmux, let pid = session.pid else { return }
+                                    Task {
+                                        _ = await YabaiController.shared.focusWindow(forClaudePid: pid)
+                                    }
+                                },
+                                onDismiss: {
+                                    vm.close()
+                                }
+                            )
+                        } else {
+                            NotchHomeView(albumArtNamespace: albumArtNamespace)
+                        }
                     case .shelf:
                         ShelfView()
                     case .claudeCode:
@@ -846,8 +867,12 @@ struct ContentView: View {
 
         if let approvalSession {
             displayedPermissionSession = approvalSession
-            withAnimation(permissionBannerAnimation) {
-                hasPendingPermissions = true
+            hasPendingPermissions = true
+
+            // AskUserQuestion: auto-open notch to show expanded question view
+            if approvalSession.pendingToolName == "AskUserQuestion" && vm.notchState == .closed {
+                coordinator.currentView = .home
+                doOpen()
             }
             return
         }

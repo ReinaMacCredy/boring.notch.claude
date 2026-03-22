@@ -29,9 +29,9 @@ struct UsageStatsView: View {
     private var loadingState: some View {
         HStack(spacing: 6) {
             ForEach(0..<3, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 8)
+                Capsule()
                     .fill(Color.white.opacity(0.04))
-                    .frame(width: 52, height: 22)
+                    .frame(width: 56, height: 24)
             }
         }
         .frame(maxWidth: .infinity)
@@ -97,10 +97,10 @@ struct UsageStatsView: View {
                 .font(.system(size: 9))
                 .foregroundColor(.white.opacity(0.3))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.08))
+        .clipShape(Capsule())
     }
 
     private func creditsPill(used: Double, limit: Double) -> some View {
@@ -117,10 +117,10 @@ struct UsageStatsView: View {
                 .font(.system(size: 9))
                 .foregroundColor(.white.opacity(0.35))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(0.06))
+        .clipShape(Capsule())
     }
 
     private func resetPill(date: Date) -> some View {
@@ -129,10 +129,10 @@ struct UsageStatsView: View {
                 .font(.system(size: 9))
                 .foregroundColor(.white.opacity(0.3))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Color.white.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.white.opacity(0.06))
+        .clipShape(Capsule())
     }
 
     // MARK: - Helpers

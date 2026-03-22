@@ -24,8 +24,10 @@ struct UsageStatsView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 4)
+            .contentShape(Rectangle())
         } else if usageService.lastError != nil {
             errorState
+                .contentShape(Rectangle())
         }
     }
 

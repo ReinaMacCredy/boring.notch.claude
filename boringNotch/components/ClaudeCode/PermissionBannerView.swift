@@ -254,7 +254,7 @@ struct PermissionBannerView: View {
     @ViewBuilder
     private func bypassButton(session: SessionState) -> some View {
         Button {
-            sessionMonitor.approvePermission(sessionId: session.sessionId)
+            sessionMonitor.askPermission(sessionId: session.sessionId)
         } label: {
             Text("Bypass")
                 .font(.system(size: 11, weight: .semibold))

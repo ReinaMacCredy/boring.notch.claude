@@ -169,6 +169,7 @@ struct AskUserQuestionView: View {
 
                     Button {
                         onDismiss()
+                        sessionMonitor.askPermission(sessionId: session.sessionId)
                         onFocus(session)
                     } label: {
                         Text("Answer")

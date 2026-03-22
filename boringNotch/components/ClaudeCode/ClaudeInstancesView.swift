@@ -11,12 +11,23 @@ import SwiftUI
 struct ClaudeInstancesView: View {
     @ObservedObject var sessionMonitor: ClaudeSessionMonitor
     @ObservedObject var viewModel: NotchViewModel
+    @ObservedObject var usageService: UsageService = .shared
 
     var body: some View {
-        if sessionMonitor.instances.isEmpty {
-            emptyState
-        } else {
-            instancesList
+        VStack(spacing: 0) {
+            UsageStatsView(usageService: usageService)
+
+            if sessionMonitor.instances.isEmpty {
+                emptyState
+            } else {
+                instancesList
+            }
+        }
+        .onAppear {
+            usageService.startAutoRefresh()
+        }
+        .onDisappear {
+            usageService.stopAutoRefresh()
         }
     }
 
@@ -269,6 +280,7 @@ struct InstanceRow: View {
                     IconButton(icon: "pencil") {
                         editingName = session.displayTitle
                         isRenaming = true
+                        SharingStateManager.shared.preventNotchClose = true
                     }
 
                     // Focus icon (only for tmux instances with yabai)

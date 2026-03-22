@@ -66,7 +66,7 @@ class NotchViewModel: ObservableObject {
         case .menu:
             return CGSize(width: openNotchSize.width, height: 300)
         case .instances:
-            return openNotchSize
+            return CGSize(width: openNotchSize.width, height: 230)
         }
     }
 

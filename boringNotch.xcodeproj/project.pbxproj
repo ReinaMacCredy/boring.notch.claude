@@ -11,6 +11,8 @@
 		0C93E166A65E8EA57FE22439 /* NotchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8661C6E7125841891286E3CC /* NotchViewModel.swift */; };
 		0CF3F93FE154E07092131737 /* PermissionBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87C205009FBF440ECD4BA1D /* PermissionBannerView.swift */; };
 		29P2AD4ID4V1K2DDXTX7FZB3 /* AskUserQuestionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */; };
+		U5G1SVC001 /* UsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = U5G1SVREF1 /* UsageService.swift */; };
+		U5G1SVC002 /* UsageStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = U5G1SVREF2 /* UsageStatsView.swift */; };
 		1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */; };
 		110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */; };
 		1100292A2E8691B400035A57 /* FileShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029292E8691B400035A57 /* FileShareView.swift */; };
@@ -378,6 +380,8 @@
 		A7A114D30A277770F802960A /* NotchActivityCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotchActivityCoordinator.swift; sourceTree = "<group>"; };
 		A87C205009FBF440ECD4BA1D /* PermissionBannerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PermissionBannerView.swift; sourceTree = "<group>"; };
 		7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AskUserQuestionView.swift; sourceTree = "<group>"; };
+		U5G1SVREF1 /* UsageService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageService.swift; sourceTree = "<group>"; };
+		U5G1SVREF2 /* UsageStatsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UsageStatsView.swift; sourceTree = "<group>"; };
 		AA8A60393A9BA048B0A37833 /* ClaudeMenuView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeMenuView.swift; sourceTree = "<group>"; };
 		ABEC2FDECE06A08CF212ABC6 /* ChatHistoryManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatHistoryManager.swift; sourceTree = "<group>"; };
 		AE7DED90D78274B921E339DC /* AgentFileWatcher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AgentFileWatcher.swift; sourceTree = "<group>"; };
@@ -1018,6 +1022,7 @@
 				D020A3479D506C0CF12808F5 /* ClaudeClosedView.swift */,
 				A87C205009FBF440ECD4BA1D /* PermissionBannerView.swift */,
 				7XRP832N3AKZAA6472RWUP02 /* AskUserQuestionView.swift */,
+				U5G1SVREF2 /* UsageStatsView.swift */,
 			);
 			path = ClaudeCode;
 			sourceTree = "<group>";
@@ -1062,6 +1067,7 @@
 				698871A5501D1693E6F6F1D0 /* SessionStore.swift */,
 				243B4018BA49ACB67934E9BF /* FileSyncScheduler.swift */,
 				97EBF11107D0375F50A98ACA /* ToolEventProcessor.swift */,
+				U5G1SVREF1 /* UsageService.swift */,
 			);
 			name = State;
 			path = State;
@@ -1393,6 +1399,8 @@
 				DF299218976A8410F666F792 /* ClaudeClosedView.swift in Sources */,
 				0CF3F93FE154E07092131737 /* PermissionBannerView.swift in Sources */,
 				29P2AD4ID4V1K2DDXTX7FZB3 /* AskUserQuestionView.swift in Sources */,
+				U5G1SVC001 /* UsageService.swift in Sources */,
+				U5G1SVC002 /* UsageStatsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

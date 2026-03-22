@@ -9,7 +9,6 @@
 import Combine
 import Defaults
 import Foundation
-import Security
 
 // MARK: - Usage Data Models
 
@@ -159,30 +158,32 @@ final class UsageService: ObservableObject {
     }
 
     private func readCredentials() throws -> OAuthCredentials {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
+        // Use `security` CLI to avoid macOS keychain password popup.
+        // SecItemCopyMatching triggers the system dialog for items created by other apps.
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = ["find-generic-password", "-s", keychainService, "-w"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
 
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        do {
+            try process.run()
+        } catch {
+            throw UsageError.noCredentials
+        }
+        process.waitUntilExit()
 
-        guard status == errSecSuccess, let data = result as? Data else {
+        guard process.terminationStatus == 0 else {
             throw UsageError.noCredentials
         }
 
-        // Try direct JSON first, then hex-encoded
-        let json: [String: Any]
-        if let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            json = parsed
-        } else if let str = String(data: data, encoding: .utf8),
-                  let hexData = Data(hexString: str),
-                  let parsed = try? JSONSerialization.jsonObject(with: hexData) as? [String: Any]
-        {
-            json = parsed
-        } else {
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let str = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              let jsonData = str.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+        else {
             throw UsageError.invalidCredentials
         }
 
@@ -199,35 +200,6 @@ final class UsageService: ObservableObject {
             refreshToken: refreshToken,
             expiresAt: Date(timeIntervalSince1970: TimeInterval(expiresAtMs) / 1000)
         )
-    }
-
-    private func saveCredentials(_ creds: OAuthCredentials) throws {
-        // Read existing, update oauth fields, write back
-        let readQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(readQuery as CFDictionary, &result)
-        guard status == errSecSuccess, let existingData = result as? Data,
-              var json = try? JSONSerialization.jsonObject(with: existingData) as? [String: Any],
-              var oauth = json["claudeAiOauth"] as? [String: Any]
-        else { return }
-
-        oauth["accessToken"] = creds.accessToken
-        oauth["refreshToken"] = creds.refreshToken
-        oauth["expiresAt"] = Int(creds.expiresAt.timeIntervalSince1970 * 1000)
-        json["claudeAiOauth"] = oauth
-
-        let newData = try JSONSerialization.data(withJSONObject: json)
-        let updateQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-        ]
-        SecItemUpdate(updateQuery as CFDictionary, [kSecValueData as String: newData] as CFDictionary)
     }
 
     // MARK: - Token Refresh
@@ -264,7 +236,6 @@ final class UsageService: ObservableObject {
             expiresAt: Date().addingTimeInterval(TimeInterval(expiresIn))
         )
 
-        try? saveCredentials(newCreds)
         return newCreds
     }
 
@@ -397,23 +368,3 @@ enum UsageError: LocalizedError {
     }
 }
 
-// MARK: - Hex Decoding
-
-private extension Data {
-    init?(hexString: String) {
-        let len = hexString.count
-        guard len % 2 == 0 else { return nil }
-
-        var data = Data(capacity: len / 2)
-        var index = hexString.startIndex
-
-        for _ in 0..<(len / 2) {
-            let nextIndex = hexString.index(index, offsetBy: 2)
-            guard let byte = UInt8(hexString[index..<nextIndex], radix: 16) else { return nil }
-            data.append(byte)
-            index = nextIndex
-        }
-
-        self = data
-    }
-}

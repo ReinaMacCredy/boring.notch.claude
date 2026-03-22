@@ -140,7 +140,9 @@ struct ClaudeClosedView: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isBouncing)
         .onAppear {
             refreshDisplayedActivity()
-            isShowingActivity = showActivity
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                isShowingActivity = showActivity
+            }
         }
         .onChange(of: showActivity) { _, newValue in
             handleActivityVisibilityChange(newValue)

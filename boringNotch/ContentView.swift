@@ -40,6 +40,8 @@ struct ContentView: View {
     @State private var showsClaudeClosedView: Bool = false
     @State private var permissionDismissTask: Task<Void, Never>?
     @State private var claudeClosedDismissTask: Task<Void, Never>?
+    @State private var musicPeekActive: Bool = false
+    @State private var musicPeekTask: Task<Void, Never>?
 
     @Namespace var albumArtNamespace
 
@@ -79,21 +81,11 @@ struct ContentView: View {
             && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
         {
             chinWidth = 640
-        } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
-            && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle)
-            && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed
-        {
-            chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
-        } else if !coordinator.expandingView.show && vm.notchState == .closed
-            && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace]
-            && !vm.hideOnClosed
-        {
-            chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
-        } else if !coordinator.expandingView.show && vm.notchState == .closed
+        } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed
             && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView]
-            && !claudeSessionMonitor.instances.isEmpty && !vm.hideOnClosed
+            && !claudeSessionMonitor.instances.isEmpty && claudeHasVisibleActivity && !vm.hideOnClosed
         {
-            // Claude Code: expand for crab + dots (left) + spinner (right)
+            // Claude Code (priority): expand for crab + dots (left) + spinner (right)
             let hasActivity = claudeSessionMonitor.instances.contains {
                 $0.phase == .processing || $0.phase == .compacting ||
                 $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
@@ -107,9 +99,26 @@ struct ContentView: View {
                 let rightWidth: CGFloat = max(0, vm.effectiveClosedNotchHeight - 12) + 10
                 chinWidth += leftWidth + rightWidth
             }
+        } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
+            && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle)
+            && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed
+        {
+            chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
+        } else if !coordinator.expandingView.show && vm.notchState == .closed
+            && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace]
+            && !vm.hideOnClosed
+        {
+            chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
         }
 
         return chinWidth
+    }
+
+    private var claudeHasVisibleActivity: Bool {
+        claudeSessionMonitor.instances.contains {
+            $0.phase == .processing || $0.phase == .compacting ||
+            $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
+        }
     }
 
     var body: some View {
@@ -159,6 +168,8 @@ struct ContentView: View {
                             .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
                             .animation(openAnimation, value: vm.notchSize)
                             .animation(.smooth, value: gestureProgress)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isPlaying || !musicManager.isPlayerIdle)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicPeekActive)
                     }
                     .contentShape(Rectangle())
                     .onHover { hovering in
@@ -230,6 +241,8 @@ struct ContentView: View {
                     Rectangle()
                         .fill(Color.black.opacity(0.01))
                         .frame(width: computedChinWidth, height: vm.chinHeight)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicManager.isPlaying || !musicManager.isPlayerIdle)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: musicPeekActive)
                 }
             }
         }
@@ -263,6 +276,46 @@ struct ContentView: View {
                 } else {
                     claudeVM.notchClose()
                 }
+            }
+            // Cancel music peek when notch opens
+            if newState == .open && musicPeekActive {
+                musicPeekTask?.cancel()
+                musicPeekActive = false
+            }
+        }
+        .onChange(of: musicManager.songTitle) { oldTitle, newTitle in
+            // Briefly show music when a new song starts while Claude is primary
+            guard vm.notchState == .closed,
+                  showsClaudeClosedView,
+                  claudeHasVisibleActivity,
+                  musicManager.isPlaying,
+                  !newTitle.isEmpty,
+                  !oldTitle.isEmpty,
+                  oldTitle != newTitle
+            else { return }
+
+            musicPeekTask?.cancel()
+            musicPeekActive = true
+            musicPeekTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { return }
+                musicPeekActive = false
+            }
+        }
+        .onChange(of: musicManager.isPlaying) { oldValue, newValue in
+            if newValue && !oldValue && vm.notchState == .closed && showsClaudeClosedView && claudeHasVisibleActivity {
+                // Music started -- peek to show album art briefly
+                musicPeekTask?.cancel()
+                musicPeekActive = true
+                musicPeekTask = Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(4))
+                    guard !Task.isCancelled else { return }
+                    musicPeekActive = false
+                }
+            } else if !newValue && musicPeekActive {
+                // Music stopped -- cancel peek immediately
+                musicPeekTask?.cancel()
+                musicPeekActive = false
             }
         }
         .onChange(of: coordinator.currentView) { oldView, newView in
@@ -350,15 +403,20 @@ struct ContentView: View {
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
-                      } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
-                          MusicLiveActivity()
-                              .frame(alignment: .center)
-                        } else if !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && showsClaudeClosedView && !vm.hideOnClosed {
+                      } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && showsClaudeClosedView && claudeHasVisibleActivity && !vm.hideOnClosed {
                             ClaudeClosedView(
                                 sessionMonitor: claudeSessionMonitor,
                                 closedNotchSize: vm.closedNotchSize,
                                 effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
                             )
+                            .transition(.asymmetric(
+                                insertion: .opacity,
+                                removal: .opacity.combined(with: .scale(scale: 0.96))
+                            ))
+                      } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
+                          MusicLiveActivity()
+                              .frame(alignment: .center)
+                              .transition(.opacity.combined(with: .scale(scale: 0.96)))
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {

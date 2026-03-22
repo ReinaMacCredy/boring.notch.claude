@@ -121,6 +121,8 @@ class HookSocketServer {
     /// Pending permission requests indexed by toolUseId
     private var pendingPermissions: [String: PendingPermission] = [:]
     private let permissionsLock = NSLock()
+    private var cleanupTimer: DispatchSourceTimer?
+    private let permissionTimeoutSeconds: TimeInterval = 300 // 5 minutes
 
     /// Cache tool_use_id from PreToolUse to correlate with PermissionRequest
     /// Key: "sessionId:toolName:serializedInput" -> Queue of tool_use_ids (FIFO)
@@ -128,7 +130,37 @@ class HookSocketServer {
     private var toolUseIdCache: [String: [String]] = [:]
     private let cacheLock = NSLock()
 
-    private init() {}
+    private init() {
+        startCleanupTimer()
+    }
+
+    /// Periodically clean up stale pending permissions and cache entries
+    private func startCleanupTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 60, repeating: 60)
+        timer.setEventHandler { [weak self] in
+            self?.cleanupStaleEntries()
+        }
+        timer.resume()
+        cleanupTimer = timer
+    }
+
+    private func cleanupStaleEntries() {
+        let now = Date()
+
+        // Clean stale permissions
+        permissionsLock.lock()
+        let staleKeys = pendingPermissions.filter {
+            now.timeIntervalSince($0.value.receivedAt) > permissionTimeoutSeconds
+        }.map { $0.key }
+        for key in staleKeys {
+            if let pending = pendingPermissions.removeValue(forKey: key) {
+                close(pending.clientSocket)
+                logger.info("Cleaned up stale permission: \(key.prefix(12), privacy: .public)")
+            }
+        }
+        permissionsLock.unlock()
+    }
 
     /// Start the socket server
     func start(onEvent: @escaping HookEventHandler, onPermissionFailure: PermissionFailureHandler? = nil) {

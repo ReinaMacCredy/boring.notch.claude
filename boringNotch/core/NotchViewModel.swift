@@ -83,6 +83,7 @@ class NotchViewModel: ObservableObject {
     private func observeHeightSetting() {
         heightCancellable = Defaults.publisher(.claudeTabHeight)
             .dropFirst()
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self = self, let vm = self.boringVM else { return }

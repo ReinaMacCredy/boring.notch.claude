@@ -76,6 +76,8 @@ final class UsageService: ObservableObject {
     // MARK: - Public
 
     func startAutoRefresh(interval: TimeInterval = 300) {
+        guard refreshTimer == nil else { return } // Already running
+
         // Fetch immediately
         Task { await fetch() }
 

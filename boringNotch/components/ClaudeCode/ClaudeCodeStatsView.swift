@@ -8,30 +8,40 @@
 import SwiftUI
 
 struct ClaudeCodeStatsView: View {
-    @ObservedObject var manager = ClaudeCodeManager.shared
+    @ObservedObject var sessionDiscovery = SessionDiscovery.shared
+    @StateObject private var sessionMonitor = ClaudeSessionMonitor()
+
+    /// The SessionState matching the currently selected session
+    private var selectedState: SessionState? {
+        guard let selectedId = sessionDiscovery.selectedSession?.id else { return nil }
+        return sessionMonitor.instances.first { $0.sessionId == selectedId }
+    }
+
+    /// Whether a selected session exists in the session store (replaces isConnected)
+    private var isConnected: Bool { selectedState != nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Row 1: Session picker + connection status + model/branch
             HStack(spacing: 6) {
-                SessionPicker(manager: manager)
+                SessionPicker()
 
-                if manager.state.isConnected {
+                if isConnected, let state = selectedState {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 5, height: 5)
 
-                    if !manager.state.model.isEmpty {
-                        Text(modelDisplayName)
+                    if let model = state.model, !model.isEmpty {
+                        Text(model.claudeModelDisplayName)
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
 
-                    if !manager.state.gitBranch.isEmpty {
+                    if let branch = state.gitBranch, !branch.isEmpty {
                         HStack(spacing: 2) {
                             Image(systemName: "arrow.triangle.branch")
                                 .font(.system(size: 8))
-                            Text(manager.state.gitBranch)
+                            Text(branch)
                                 .lineLimit(1)
                         }
                         .font(.caption2)
@@ -42,17 +52,17 @@ struct ClaudeCodeStatsView: View {
                 Spacer()
             }
 
-            if manager.state.isConnected {
+            if isConnected, let state = selectedState {
                 // Row 2: Context bar with token breakdown
                 ContextBarWithBreakdown(
-                    percentage: manager.state.contextPercentage,
-                    usage: manager.state.tokenUsage
+                    percentage: state.contextPercentage,
+                    usage: state.tokenUsage ?? TokenUsage()
                 )
 
                 // Row 3: Todo list (show up to 3)
-                if !manager.state.todos.isEmpty {
+                if !state.todos.isEmpty {
                     VStack(alignment: .leading, spacing: 3) {
-                        ForEach(manager.state.todos.prefix(3)) { todo in
+                        ForEach(state.todos.prefix(3)) { todo in
                             HStack(spacing: 4) {
                                 Image(systemName: todo.status.icon)
                                     .font(.system(size: 8))
@@ -69,35 +79,24 @@ struct ClaudeCodeStatsView: View {
                 }
 
                 // Row 4: Last message output
-                if !manager.state.lastMessage.isEmpty {
-                    Text(manager.state.lastMessage)
+                if let lastMessage = state.lastMessage, !lastMessage.isEmpty {
+                    Text(lastMessage)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                // Row 5: Active/recent tools
-                if !manager.state.activeTools.isEmpty || !manager.state.recentTools.isEmpty {
+                // Row 5: Active tools
+                // TODO: Add recentTools tracking to SessionState (Phase 7)
+                if !state.toolTracker.inProgress.isEmpty {
                     HStack(spacing: 4) {
-                        if let activeTool = manager.state.activeTools.first {
-                            ToolActivityIndicator(isActive: true, toolName: activeTool.toolName)
+                        if let activeTool = state.toolTracker.inProgress.values.first {
+                            ToolActivityIndicator(isActive: true, toolName: activeTool.name)
                                 .scaleEffect(0.5)
-                            Text(activeTool.toolName)
+                            Text(activeTool.name)
                                 .font(.caption2)
                                 .foregroundColor(.orange)
-                        } else if let recentTool = manager.state.recentTools.first {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 8))
-                                .foregroundColor(.green)
-                            Text(recentTool.toolName)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            if let duration = recentTool.durationMs {
-                                Text("\(duration)ms")
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundColor(.secondary.opacity(0.7))
-                            }
                         }
                         Spacer()
                     }
@@ -116,12 +115,12 @@ struct ClaudeCodeStatsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
 
-                        if manager.availableSessions.isEmpty {
+                        if sessionDiscovery.availableSessions.isEmpty {
                             Text("Start Claude Code to begin")
                                 .font(.caption2)
                                 .foregroundColor(.secondary.opacity(0.7))
                         } else {
-                            Text("\(manager.availableSessions.count) session\(manager.availableSessions.count == 1 ? "" : "s") available")
+                            Text("\(sessionDiscovery.availableSessions.count) session\(sessionDiscovery.availableSessions.count == 1 ? "" : "s") available")
                                 .font(.caption2)
                                 .foregroundColor(.secondary.opacity(0.7))
                         }
@@ -133,10 +132,6 @@ struct ClaudeCodeStatsView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-
-    private var modelDisplayName: String {
-        manager.state.model.claudeModelDisplayName
     }
 }
 

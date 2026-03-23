@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct ClaudeCodeCompactView: View {
-    @ObservedObject var manager = ClaudeCodeManager.shared
+    @ObservedObject var sessionDiscovery = SessionDiscovery.shared
     @EnvironmentObject var vm: BoringViewModel
 
     var body: some View {
@@ -19,7 +19,7 @@ struct ClaudeCodeCompactView: View {
             .frame(width: vm.closedNotchSize.width, height: vm.effectiveClosedNotchHeight)
             .overlay(alignment: .bottom) {
                 // Session dots at the bottom of the notch area
-                if !manager.availableSessions.isEmpty {
+                if !sessionDiscovery.availableSessions.isEmpty {
                     SessionDotsIndicator()
                         .padding(.bottom, 2)
                 }
@@ -61,37 +61,40 @@ struct PermissionNeededIndicator: View {
 }
 
 struct ClaudeCodeCompactViewMinimal: View {
-    @ObservedObject var manager = ClaudeCodeManager.shared
+    @ObservedObject var sessionDiscovery = SessionDiscovery.shared
+    @StateObject private var sessionMonitor = ClaudeSessionMonitor()
+
+    /// The SessionState matching the currently selected session
+    private var selectedState: SessionState? {
+        guard let selectedId = sessionDiscovery.selectedSession?.id else { return nil }
+        return sessionMonitor.instances.first { $0.sessionId == selectedId }
+    }
 
     var body: some View {
         HStack(spacing: 6) {
             // Session dots (compact version)
-            if !manager.availableSessions.isEmpty {
+            if !sessionDiscovery.availableSessions.isEmpty {
                 SessionDotsIndicatorCompact()
             } else {
-                ToolActivityIndicatorCompact(isActive: manager.state.hasActiveTools)
+                ToolActivityIndicatorCompact(isActive: selectedState?.toolTracker.inProgress.isEmpty == false)
             }
 
             // Model badge
-            if !manager.state.model.isEmpty {
-                Text(modelShortName)
+            if let model = selectedState?.model, !model.isEmpty {
+                Text(model.claudeModelDisplayName.lowercased())
                     .font(.system(size: 9, weight: .medium))
                     .foregroundColor(.primary.opacity(0.7))
             }
 
             // Context percentage
-            Text("\(Int(manager.state.contextPercentage))%")
+            Text("\(Int(selectedState?.contextPercentage ?? 0))%")
                 .font(.system(size: 10).monospacedDigit())
                 .foregroundColor(contextColor)
         }
     }
 
-    private var modelShortName: String {
-        manager.state.model.claudeModelDisplayName.lowercased()
-    }
-
     private var contextColor: Color {
-        contextPercentageColor(for: manager.state.contextPercentage)
+        contextPercentageColor(for: selectedState?.contextPercentage ?? 0)
     }
 }
 

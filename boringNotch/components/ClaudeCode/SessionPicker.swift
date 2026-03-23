@@ -8,16 +8,16 @@
 import SwiftUI
 
 struct SessionPicker: View {
-    @ObservedObject var manager: ClaudeCodeManager
+    @ObservedObject var sessionDiscovery = SessionDiscovery.shared
 
     var body: some View {
         Menu {
-            if manager.availableSessions.isEmpty {
+            if sessionDiscovery.availableSessions.isEmpty {
                 Text("No active sessions")
                     .foregroundColor(.secondary)
             } else {
-                ForEach(manager.availableSessions) { session in
-                    Button(action: { manager.selectSession(session) }) {
+                ForEach(sessionDiscovery.availableSessions) { session in
+                    Button(action: { sessionDiscovery.selectSession(session) }) {
                         HStack {
                             Image(systemName: ideIcon(for: session.ideName))
                             VStack(alignment: .leading) {
@@ -26,7 +26,7 @@ struct SessionPicker: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            if session.pid == manager.selectedSession?.pid {
+                            if session.pid == sessionDiscovery.selectedSession?.pid {
                                 Spacer()
                                 Image(systemName: "checkmark")
                             }
@@ -37,7 +37,7 @@ struct SessionPicker: View {
 
             Divider()
 
-            Button(action: { manager.scanForSessions() }) {
+            Button(action: { sessionDiscovery.scanForSessions() }) {
                 Label("Refresh Sessions", systemImage: "arrow.clockwise")
             }
         } label: {
@@ -45,7 +45,7 @@ struct SessionPicker: View {
                 Image(systemName: "terminal.fill")
                     .font(.system(size: 12))
 
-                if let session = manager.selectedSession {
+                if let session = sessionDiscovery.selectedSession {
                     Text(session.displayName)
                         .lineLimit(1)
                 } else {
@@ -82,26 +82,26 @@ struct SessionPicker: View {
 }
 
 struct SessionPickerCompact: View {
-    @ObservedObject var manager: ClaudeCodeManager
+    @ObservedObject var sessionDiscovery = SessionDiscovery.shared
 
     var body: some View {
         Menu {
-            ForEach(manager.availableSessions) { session in
+            ForEach(sessionDiscovery.availableSessions) { session in
                 Button(session.displayName) {
-                    manager.selectSession(session)
+                    sessionDiscovery.selectSession(session)
                 }
             }
 
-            if manager.availableSessions.isEmpty {
+            if sessionDiscovery.availableSessions.isEmpty {
                 Text("No sessions")
             }
         } label: {
             HStack(spacing: 4) {
                 Circle()
-                    .fill(manager.selectedSession != nil ? Color.green : Color.gray)
+                    .fill(sessionDiscovery.selectedSession != nil ? Color.green : Color.gray)
                     .frame(width: 6, height: 6)
 
-                if let session = manager.selectedSession {
+                if let session = sessionDiscovery.selectedSession {
                     Text(session.displayName)
                         .font(.caption)
                         .lineLimit(1)
@@ -114,8 +114,8 @@ struct SessionPickerCompact: View {
 
 #Preview {
     VStack(spacing: 20) {
-        SessionPicker(manager: ClaudeCodeManager.shared)
-        SessionPickerCompact(manager: ClaudeCodeManager.shared)
+        SessionPicker()
+        SessionPickerCompact()
     }
     .padding()
     .frame(width: 300)

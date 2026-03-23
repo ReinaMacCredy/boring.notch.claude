@@ -6,6 +6,7 @@
 //  Extracted from ClaudeCodeManager (Phase 6.2).
 //
 
+import Combine
 import Foundation
 import AppKit
 
@@ -25,28 +26,18 @@ final class SessionDiscovery: ObservableObject {
     /// Grace period to keep notch visible after activity stops (seconds)
     private let activityGracePeriod: TimeInterval = 2.0
 
-    /// True if any session has activity (thinking, active tools, or needs permission)
-    /// Includes a grace period to prevent flickering when switching between tools.
-    /// Pure read-only -- lastActivityTime is updated at mutation sites, not here.
-    ///
-    /// Reads `ClaudeCodeManager.shared` for session state (thinking, active tools,
-    /// permissions). This avoids duplicating state tracking here while keeping the
-    /// activity check centralized.
-    var hasAnySessionActivity: Bool {
-        let manager = ClaudeCodeManager.shared
+    /// Cached session states from SessionStore (for activity checks)
+    private var sessionStates: [SessionState] = []
+    private var cancellables = Set<AnyCancellable>()
 
-        // Check if any session is active (thinking or has active tools) or needs permission
-        for sessionState in manager.sessionStates.values {
-            if sessionState.isActive || sessionState.needsPermission {
+    /// True if any session has activity (processing, waiting for approval)
+    /// Includes a grace period to prevent flickering when switching between tools.
+    var hasAnySessionActivity: Bool {
+        // Check if any session is active or waiting for approval
+        for state in sessionStates {
+            if state.phase.isActive || state.phase.isWaitingForApproval {
                 return true
             }
-        }
-        // Also check selected session's state
-        if manager.state.isActive || manager.state.needsPermission {
-            return true
-        }
-        if !manager.sessionsNeedingPermission.isEmpty {
-            return true
         }
 
         // Grace period: keep showing activity for a short time after it stops
@@ -76,6 +67,14 @@ final class SessionDiscovery: ObservableObject {
     // MARK: - Initialization
 
     private init() {
+        // Subscribe to SessionStore for activity tracking
+        SessionStore.shared.sessionsPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] sessions in
+                self?.sessionStates = sessions
+            }
+            .store(in: &cancellables)
+
         startSessionScanning()
     }
 
@@ -133,12 +132,10 @@ final class SessionDiscovery: ObservableObject {
             if let selected = selectedSession,
                !sessions.contains(where: { $0.pid == selected.pid }) {
                 selectedSession = nil
-                // Notify manager that session was deselected
-                ClaudeCodeManager.shared.handleSessionDeselected()
             }
 
-            // Notify manager to sync multi-session watchers and refresh stats
-            ClaudeCodeManager.shared.handleSessionsChanged()
+            // Refresh daily stats if CCM still exists
+            ClaudeCodeManager.shared.loadDailyStats()
 
         } catch {
             print("[SessionDiscovery] Error scanning for sessions: \(error)")
@@ -153,9 +150,6 @@ final class SessionDiscovery: ObservableObject {
         print("[SessionDiscovery] Selecting session: \(session.displayName)")
         #endif
         selectedSession = session
-
-        // Notify manager so it can start watching the JSONL file
-        ClaudeCodeManager.shared.handleSessionSelected(session)
     }
 
     // MARK: - Session Scanning

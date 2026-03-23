@@ -9,17 +9,18 @@
 import SwiftUI
 
 struct SessionDotsIndicator: View {
-    @ObservedObject var manager = ClaudeCodeManager.shared
+    @ObservedObject var sessionDiscovery = SessionDiscovery.shared
+    @StateObject private var sessionMonitor = ClaudeSessionMonitor()
 
     var body: some View {
         HStack(spacing: 6) {
-            ForEach(manager.availableSessions) { session in
+            ForEach(sessionDiscovery.availableSessions) { session in
                 SessionDot(
                     session: session,
-                    state: manager.sessionStates[session.id]
+                    state: sessionMonitor.instances.first { $0.sessionId == session.id }
                 )
                 .onTapGesture {
-                    manager.focusIDE(for: session)
+                    IDEFocuser.focusIDE(for: session)
                 }
             }
         }
@@ -28,22 +29,30 @@ struct SessionDotsIndicator: View {
 
 struct SessionDot: View {
     let session: ClaudeSession
-    let state: ClaudeCodeState?
+    let state: SessionState?
     var showTooltip: Bool = true
 
     @State private var isBlinking = false
 
+    private var isWaitingForApproval: Bool {
+        state?.phase.isWaitingForApproval == true
+    }
+
+    private var isActive: Bool {
+        state?.phase.isActive == true
+    }
+
     private var dotColor: Color {
-        if state?.needsPermission == true {
+        if isWaitingForApproval {
             return .orange
-        } else if state?.isActive == true {
+        } else if isActive {
             return .green
         }
         return .gray
     }
 
     private var shouldBlink: Bool {
-        state?.needsPermission == true || state?.isActive == true
+        isWaitingForApproval || isActive
     }
 
     var body: some View {
@@ -62,7 +71,7 @@ struct SessionDot: View {
                     isBlinking = false
                 }
             }
-            .onChange(of: state?.needsPermission) { _, _ in
+            .onChange(of: isWaitingForApproval) { _, _ in
                 // Reset animation when permission state changes
                 if shouldBlink {
                     isBlinking = false
@@ -81,9 +90,9 @@ struct SessionDot: View {
 
     private var tooltipText: String {
         var text = session.displayName
-        if state?.needsPermission == true {
+        if isWaitingForApproval {
             text += " - Needs permission"
-        } else if state?.isActive == true {
+        } else if isActive {
             text += " - Working"
         } else {
             text += " - Idle"
@@ -101,18 +110,19 @@ struct SessionDot: View {
 
 /// Compact version showing just the dots without additional styling
 struct SessionDotsIndicatorCompact: View {
-    @ObservedObject var manager = ClaudeCodeManager.shared
+    @ObservedObject var sessionDiscovery = SessionDiscovery.shared
+    @StateObject private var sessionMonitor = ClaudeSessionMonitor()
 
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(manager.availableSessions) { session in
+            ForEach(sessionDiscovery.availableSessions) { session in
                 SessionDot(
                     session: session,
-                    state: manager.sessionStates[session.id],
+                    state: sessionMonitor.instances.first { $0.sessionId == session.id },
                     showTooltip: false
                 )
                 .onTapGesture {
-                    manager.focusIDE(for: session)
+                    IDEFocuser.focusIDE(for: session)
                 }
             }
         }

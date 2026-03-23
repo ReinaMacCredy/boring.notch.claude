@@ -935,7 +935,6 @@ struct Shelf: View {
 
 struct ClaudeCodeSettings: View {
     @StateObject private var sessionMonitor = ClaudeSessionMonitor()
-    @ObservedObject var claudeCodeManager = ClaudeCodeManager.shared
     @Default(.enableClaudeCode) var enableClaudeCode
     @Default(.notchTransitionStyle) var notchTransitionStyle
     @Default(.showUsageThresholdNotifications) var showUsageThresholdNotifications

@@ -23,8 +23,13 @@ final class ClaudeCodeManager: ObservableObject {
 
     // MARK: - Published Properties
 
-    @Published private(set) var availableSessions: [ClaudeSession] = []
-    @Published var selectedSession: ClaudeSession?
+    /// Forwarded from SessionDiscovery for backward compatibility.
+    /// Views that only need session list should migrate to SessionDiscovery.shared directly (Phase 6.4).
+    var availableSessions: [ClaudeSession] { SessionDiscovery.shared.availableSessions }
+    var selectedSession: ClaudeSession? {
+        get { SessionDiscovery.shared.selectedSession }
+        set { SessionDiscovery.shared.selectedSession = newValue }
+    }
     @Published private(set) var state: ClaudeCodeState = ClaudeCodeState()
     @Published private(set) var dailyStats: DailyStats = DailyStats()
 
@@ -36,42 +41,12 @@ final class ClaudeCodeManager: ObservableObject {
     /// Sessions currently waiting for user permission approval
     @Published private(set) var sessionsNeedingPermission: [ClaudeSession] = []
 
-    /// Track when we last had activity (for grace period before notch collapses)
-    private var lastActivityTime: Date = Date()
-    /// Grace period to keep notch visible after activity stops (seconds)
-    private let activityGracePeriod: TimeInterval = 2.0
+    /// Forwarded from SessionDiscovery for backward compatibility.
+    var hasAnySessionActivity: Bool { SessionDiscovery.shared.hasAnySessionActivity }
 
-    /// True if any session has activity (thinking, active tools, or needs permission)
-    /// Includes a grace period to prevent flickering when switching between tools.
-    /// Pure read-only -- lastActivityTime is updated at mutation sites, not here.
-    var hasAnySessionActivity: Bool {
-        // Check if any session is active (thinking or has active tools) or needs permission
-        for sessionState in sessionStates.values {
-            if sessionState.isActive || sessionState.needsPermission {
-                return true
-            }
-        }
-        // Also check selected session's state
-        if state.isActive || state.needsPermission {
-            return true
-        }
-        if !sessionsNeedingPermission.isEmpty {
-            return true
-        }
-
-        // Grace period: keep showing activity for a short time after it stops
-        // This prevents the notch from flickering during tool transitions
-        let timeSinceLastActivity = Date().timeIntervalSince(lastActivityTime)
-        if timeSinceLastActivity < activityGracePeriod {
-            return true
-        }
-
-        return false
-    }
-
-    /// Call when a session becomes active (thinking, tool started, permission needed)
+    /// Forward activity marking to SessionDiscovery
     private func markActivity() {
-        lastActivityTime = Date()
+        SessionDiscovery.shared.markActivity()
     }
 
     // MARK: - Private Properties
@@ -79,15 +54,12 @@ final class ClaudeCodeManager: ObservableObject {
     // Use the real home directory, not the sandboxed container
     private let claudeDir: URL = URL(fileURLWithPath: realHomeDirectory())
         .appendingPathComponent(".claude")
-    private var ideDir: URL { claudeDir.appendingPathComponent("ide") }
     private var projectsDir: URL { claudeDir.appendingPathComponent("projects") }
 
     private var sessionFileWatcher: DispatchSourceFileSystemObject?
     private var ideDirWatcher: DispatchSourceFileSystemObject?
     private var sessionFileHandle: FileHandle?
     private var lastReadPosition: UInt64 = 0
-
-    private var sessionScanTimer: Timer?
 
     /// Last observed modification time of stats-cache.json (skip re-reads when unchanged)
     private var lastStatsMtime: Date?
@@ -123,7 +95,8 @@ final class ClaudeCodeManager: ObservableObject {
 
     private init() {
         setupNotifications()
-        startSessionScanning()
+        // Session scanning is now handled by SessionDiscovery.shared
+        // which calls handleSessionSelected/handleSessionDeselected as needed.
         loadDailyStats()
     }
 
@@ -131,142 +104,64 @@ final class ClaudeCodeManager: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// Scan for active Claude Code sessions
+    /// Forward to SessionDiscovery.
+    /// scanForSessions triggers handleSessionsChanged which syncs watchers + stats.
     func scanForSessions() {
-        let fm = FileManager.default
-
-        guard fm.fileExists(atPath: ideDir.path) else {
-            availableSessions = []
-            return
-        }
-
-        do {
-            let lockFiles = try fm.contentsOfDirectory(at: ideDir, includingPropertiesForKeys: nil)
-                .filter { $0.pathExtension == "lock" }
-
-            var sessions: [ClaudeSession] = []
-
-            // Snapshot running apps once to avoid repeated IPC in the loop
-            let runningApps = NSWorkspace.shared.runningApplications
-
-            for lockFile in lockFiles {
-                guard let data = fm.contents(atPath: lockFile.path) else {
-                    continue
-                }
-
-                do {
-                    let session = try JSONDecoder().decode(ClaudeSession.self, from: data)
-
-                    // Verify process is still running
-                    if isProcessRunning(pid: session.pid, runningApps: runningApps) {
-                        sessions.append(session)
-                    }
-                } catch {
-                    // Skip invalid lock files silently
-                }
-            }
-
-            // Only log when session count changes
-            #if DEBUG
-            if sessions.count != availableSessions.count {
-                print("[ClaudeCode] Active sessions: \(sessions.count)")
-            }
-            #endif
-            availableSessions = sessions
-
-            // Auto-select if only one session and none selected
-            if selectedSession == nil && sessions.count == 1 {
-                selectSession(sessions[0])
-            }
-
-            // Clear selection if selected session no longer exists
-            if let selected = selectedSession,
-               !sessions.contains(where: { $0.pid == selected.pid }) {
-                selectedSession = nil
-                state = ClaudeCodeState()
-                stopWatchingSessionFile()
-            }
-
-            // MARK: Multi-Session Watching - Watch ALL sessions for permission detection
-            let currentSessionIds = Set(sessions.map { $0.id })
-
-            // Start watching new sessions
-            for session in sessions {
-                if sessionWatchers[session.id] == nil {
-                    startWatchingSession(session)
-                }
-            }
-
-            // Stop watching sessions that no longer exist
-            let watchedIds = Array(sessionWatchers.keys)
-            for watchedId in watchedIds where !currentSessionIds.contains(watchedId) {
-                stopWatchingSession(id: watchedId)
-            }
-
-        } catch {
-            print("[ClaudeCode] Error scanning for sessions: \(error)")
-        }
+        SessionDiscovery.shared.scanForSessions()
     }
 
-    /// Select a session to monitor
+    /// Forward to SessionDiscovery
     func selectSession(_ session: ClaudeSession) {
-        guard session != selectedSession else { return }
+        SessionDiscovery.shared.selectSession(session)
+    }
 
-        #if DEBUG
-        print("[ClaudeCode] Selecting session: \(session.displayName)")
-        #endif
-        selectedSession = session
+    /// Called by SessionDiscovery when a session is selected
+    func handleSessionSelected(_ session: ClaudeSession) {
         state = ClaudeCodeState()
         state.cwd = session.workspaceFolders.first ?? ""
-
         startWatchingSessionFile()
+    }
+
+    /// Called by SessionDiscovery when the selected session is deselected (no longer exists)
+    func handleSessionDeselected() {
+        state = ClaudeCodeState()
+        stopWatchingSessionFile()
+    }
+
+    /// Called by SessionDiscovery after each scan completes to sync watchers and stats
+    func handleSessionsChanged() {
+        syncMultiSessionWatchers()
+        loadDailyStats()
     }
 
     /// Manually refresh state
     func refresh() {
-        scanForSessions()
+        // scanForSessions triggers handleSessionsChanged which syncs watchers + stats
+        SessionDiscovery.shared.scanForSessions()
         if selectedSession != nil {
             readNewSessionData()
         }
     }
 
-    // MARK: - Session Scanning
+    // MARK: - Multi-Session Watcher Sync
 
-    private func startSessionScanning() {
-        // Initial scan
-        scanForSessions()
+    /// Sync multi-session watchers with the current session list from SessionDiscovery
+    private func syncMultiSessionWatchers() {
+        let sessions = SessionDiscovery.shared.availableSessions
+        let currentSessionIds = Set(sessions.map { $0.id })
 
-        // Periodic scan every 10 seconds (reduced from 5 to minimize memory pressure)
-        sessionScanTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.scanForSessions()
-                self?.loadDailyStats()
+        // Start watching new sessions
+        for session in sessions {
+            if sessionWatchers[session.id] == nil {
+                startWatchingSession(session)
             }
         }
-    }
 
-    private func isProcessRunning(pid: Int, runningApps: [NSRunningApplication]? = nil) -> Bool {
-        // Use NSRunningApplication or check /proc to avoid sandbox restrictions with kill()
-        // The kill() approach doesn't work in sandboxed apps
-        let apps = runningApps ?? NSWorkspace.shared.runningApplications
-        if apps.contains(where: { $0.processIdentifier == Int32(pid) }) {
-            return true
+        // Stop watching sessions that no longer exist
+        let watchedIds = Array(sessionWatchers.keys)
+        for watchedId in watchedIds where !currentSessionIds.contains(watchedId) {
+            stopWatchingSession(id: watchedId)
         }
-
-        // Fallback: check if the process directory exists (works for any process)
-        let procPath = "/proc/\(pid)"
-        if FileManager.default.fileExists(atPath: procPath) {
-            return true
-        }
-
-        // Another fallback: try to get process info via sysctl
-        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, Int32(pid)]
-        var info = kinfo_proc()
-        var size = MemoryLayout<kinfo_proc>.size
-        let result = sysctl(&mib, UInt32(mib.count), &info, &size, nil, 0)
-
-        // If sysctl succeeds and returns data, process exists
-        return result == 0 && size > 0
     }
 
     // MARK: - File Watching
@@ -351,8 +246,7 @@ final class ClaudeCodeManager: ObservableObject {
     }
 
     private func stopWatching() {
-        sessionScanTimer?.invalidate()
-        sessionScanTimer = nil
+        // Session scanning timer is owned by SessionDiscovery
         idleCheckTimer?.invalidate()
         idleCheckTimer = nil
         stopWatchingSessionFile()
@@ -1052,68 +946,10 @@ final class ClaudeCodeManager: ObservableObject {
 
     // MARK: - IDE Focus
 
-    /// Bring the IDE running Claude Code to the front
-    /// - Parameter session: The session to focus. If nil, focuses the selected session.
+    /// Forward to IDEFocuser for backward compatibility.
+    /// Callers should migrate to `IDEFocuser.focusIDE(for:)` directly (Phase 6.4).
     func focusIDE(for session: ClaudeSession? = nil) {
-        guard let targetSession = session ?? selectedSession else {
-            print("[ClaudeCode] No session to focus")
-            return
-        }
-
-        let ideName = targetSession.ideName.lowercased()
-        #if DEBUG
-        print("[ClaudeCode] Attempting to focus IDE: \(targetSession.ideName)")
-        #endif
-
-        // Map common IDE names to bundle identifiers
-        let bundleIdentifiers: [String] = {
-            if ideName.contains("cursor") {
-                return ["com.todesktop.230313mzl4w4u92"]
-            } else if ideName.contains("code") || ideName.contains("vscode") {
-                return ["com.microsoft.VSCode", "com.visualstudio.code.oss"]
-            } else if ideName.contains("windsurf") {
-                return ["com.codeium.windsurf"]
-            } else if ideName.contains("zed") {
-                return ["dev.zed.Zed"]
-            } else {
-                // Try to find by process ID as fallback
-                return []
-            }
-        }()
-
-        // Try to activate by bundle identifier first
-        for bundleId in bundleIdentifiers {
-            if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
-                #if DEBUG
-                print("[ClaudeCode] Found app by bundle ID: \(bundleId)")
-                #endif
-                app.activate(options: [.activateIgnoringOtherApps])
-                return
-            }
-        }
-
-        // Fallback: find by PID
-        let runningApps = NSWorkspace.shared.runningApplications
-        if let app = runningApps.first(where: { $0.processIdentifier == Int32(targetSession.pid) }) {
-            #if DEBUG
-            print("[ClaudeCode] Found app by PID: \(targetSession.pid)")
-            #endif
-            app.activate(options: [.activateIgnoringOtherApps])
-            return
-        }
-
-        // Last resort: try to find any app with matching name
-        if let app = runningApps.first(where: {
-            $0.localizedName?.lowercased().contains(ideName) == true
-        }) {
-            #if DEBUG
-            print("[ClaudeCode] Found app by name match: \(app.localizedName ?? "unknown")")
-            #endif
-            app.activate(options: [.activateIgnoringOtherApps])
-            return
-        }
-
-        print("[ClaudeCode] Could not find IDE to focus")
+        IDEFocuser.focusIDE(for: session)
     }
 
     // MARK: - Notifications

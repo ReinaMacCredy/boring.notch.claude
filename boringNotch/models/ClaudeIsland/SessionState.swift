@@ -50,6 +50,20 @@ struct SessionState: Equatable, Identifiable, Sendable {
 
     var conversationInfo: ConversationInfo
 
+    // MARK: - Model & Usage (from JSONL parsing)
+
+    /// The model name used by this session (e.g. "claude-opus-4-5-20250514")
+    var model: String?
+
+    /// Cumulative token usage for this session
+    var tokenUsage: TokenUsage?
+
+    /// Git branch detected from JSONL cwd or gitBranch field
+    var gitBranch: String?
+
+    /// Todo items extracted from TodoWrite tool calls
+    var todos: [ClaudeTodoItem] = []
+
     // MARK: - Clear Reconciliation
 
     /// When true, the next file update should reconcile chatItems with parser state
@@ -83,6 +97,10 @@ struct SessionState: Equatable, Identifiable, Sendable {
             summary: nil, lastMessage: nil, lastMessageRole: nil,
             lastToolName: nil, firstUserMessage: nil, lastUserMessageDate: nil
         ),
+        model: String? = nil,
+        tokenUsage: TokenUsage? = nil,
+        gitBranch: String? = nil,
+        todos: [ClaudeTodoItem] = [],
         needsClearReconciliation: Bool = false,
         lastActivity: Date = Date(),
         createdAt: Date = Date()
@@ -99,6 +117,10 @@ struct SessionState: Equatable, Identifiable, Sendable {
         self.toolTracker = toolTracker
         self.subagentState = subagentState
         self.conversationInfo = conversationInfo
+        self.model = model
+        self.tokenUsage = tokenUsage
+        self.gitBranch = gitBranch
+        self.todos = todos
         self.needsClearReconciliation = needsClearReconciliation
         self.lastActivity = lastActivity
         self.createdAt = createdAt
@@ -117,6 +139,11 @@ struct SessionState: Equatable, Identifiable, Sendable {
             return ctx
         }
         return nil
+    }
+
+    /// Context window usage percentage, derived from tokenUsage
+    var contextPercentage: Double {
+        tokenUsage?.contextPercentage ?? 0
     }
 
     // MARK: - UI Convenience Properties

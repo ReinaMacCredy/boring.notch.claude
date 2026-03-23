@@ -49,6 +49,10 @@ class ChatHistoryManager: ObservableObject {
         let completedTools = await ConversationParser.shared.completedToolIds(for: sessionId)
         let toolResults = await ConversationParser.shared.toolResults(for: sessionId)
         let structuredResults = await ConversationParser.shared.structuredResults(for: sessionId)
+        let model = await ConversationParser.shared.model(for: sessionId)
+        let tokenUsage = await ConversationParser.shared.tokenUsage(for: sessionId)
+        let gitBranch = await ConversationParser.shared.gitBranch(for: sessionId)
+        let todos = await ConversationParser.shared.todos(for: sessionId)
 
         let payload = FileUpdatePayload(
             sessionId: sessionId,
@@ -57,7 +61,11 @@ class ChatHistoryManager: ObservableObject {
             isIncremental: false,  // Full sync
             completedToolIds: completedTools,
             toolResults: toolResults,
-            structuredResults: structuredResults
+            structuredResults: structuredResults,
+            model: model,
+            tokenUsage: tokenUsage,
+            gitBranch: gitBranch,
+            todos: todos
         )
 
         await SessionStore.shared.process(.fileUpdated(payload))

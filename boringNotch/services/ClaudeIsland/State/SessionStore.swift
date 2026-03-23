@@ -90,14 +90,18 @@ actor SessionStore {
         case .loadHistory(let sessionId, let cwd):
             await loadHistoryFromFile(sessionId: sessionId, cwd: cwd)
 
-        case .historyLoaded(let sessionId, let messages, let completedTools, let toolResults, let structuredResults, let conversationInfo):
+        case .historyLoaded(let sessionId, let messages, let completedTools, let toolResults, let structuredResults, let conversationInfo, let model, let tokenUsage, let gitBranch, let todos):
             await processHistoryLoaded(
                 sessionId: sessionId,
                 messages: messages,
                 completedTools: completedTools,
                 toolResults: toolResults,
                 structuredResults: structuredResults,
-                conversationInfo: conversationInfo
+                conversationInfo: conversationInfo,
+                model: model,
+                tokenUsage: tokenUsage,
+                gitBranch: gitBranch,
+                todos: todos
             )
 
         case .toolCompleted(let sessionId, let toolUseId, let result):
@@ -516,6 +520,20 @@ actor SessionStore {
         )
         session.conversationInfo = conversationInfo
 
+        // Update model & usage fields from JSONL parsing
+        if let model = payload.model {
+            session.model = model
+        }
+        if let tokenUsage = payload.tokenUsage {
+            session.tokenUsage = tokenUsage
+        }
+        if let gitBranch = payload.gitBranch {
+            session.gitBranch = gitBranch
+        }
+        if !payload.todos.isEmpty {
+            session.todos = payload.todos
+        }
+
         // Handle /clear reconciliation - remove items that no longer exist in parser state
         if session.needsClearReconciliation {
             // Build set of valid IDs from the payload messages
@@ -901,6 +919,10 @@ actor SessionStore {
         let completedTools = await ConversationParser.shared.completedToolIds(for: sessionId)
         let toolResults = await ConversationParser.shared.toolResults(for: sessionId)
         let structuredResults = await ConversationParser.shared.structuredResults(for: sessionId)
+        let model = await ConversationParser.shared.model(for: sessionId)
+        let tokenUsage = await ConversationParser.shared.tokenUsage(for: sessionId)
+        let gitBranch = await ConversationParser.shared.gitBranch(for: sessionId)
+        let todos = await ConversationParser.shared.todos(for: sessionId)
 
         // Also parse conversationInfo (summary, lastMessage, etc.)
         let conversationInfo = await ConversationParser.shared.parse(
@@ -915,7 +937,11 @@ actor SessionStore {
             completedTools: completedTools,
             toolResults: toolResults,
             structuredResults: structuredResults,
-            conversationInfo: conversationInfo
+            conversationInfo: conversationInfo,
+            model: model,
+            tokenUsage: tokenUsage,
+            gitBranch: gitBranch,
+            todos: todos
         ))
     }
 
@@ -925,12 +951,30 @@ actor SessionStore {
         completedTools: Set<String>,
         toolResults: [String: ConversationParser.ToolResult],
         structuredResults: [String: ToolResultData],
-        conversationInfo: ConversationInfo
+        conversationInfo: ConversationInfo,
+        model: String?,
+        tokenUsage: TokenUsage?,
+        gitBranch: String?,
+        todos: [ClaudeTodoItem]
     ) async {
         guard var session = sessions[sessionId] else { return }
 
         // Update conversationInfo (summary, lastMessage, etc.)
         session.conversationInfo = conversationInfo
+
+        // Update model & usage fields
+        if let model = model {
+            session.model = model
+        }
+        if let tokenUsage = tokenUsage {
+            session.tokenUsage = tokenUsage
+        }
+        if let gitBranch = gitBranch {
+            session.gitBranch = gitBranch
+        }
+        if !todos.isEmpty {
+            session.todos = todos
+        }
 
         // Convert messages to chat items
         let existingIds = Set(session.chatItems.map { $0.id })
@@ -992,7 +1036,11 @@ actor SessionStore {
                 isIncremental: !result.clearDetected,
                 completedToolIds: result.completedToolIds,
                 toolResults: result.toolResults,
-                structuredResults: result.structuredResults
+                structuredResults: result.structuredResults,
+                model: result.model,
+                tokenUsage: result.tokenUsage,
+                gitBranch: result.gitBranch,
+                todos: result.todos
             )
 
             await self?.process(.fileUpdated(payload))

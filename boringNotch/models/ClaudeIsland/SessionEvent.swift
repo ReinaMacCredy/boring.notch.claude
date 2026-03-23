@@ -80,7 +80,7 @@ enum SessionEvent: Sendable {
     case loadHistory(sessionId: String, cwd: String)
 
     /// History load completed
-    case historyLoaded(sessionId: String, messages: [ChatMessage], completedTools: Set<String>, toolResults: [String: ConversationParser.ToolResult], structuredResults: [String: ToolResultData], conversationInfo: ConversationInfo)
+    case historyLoaded(sessionId: String, messages: [ChatMessage], completedTools: Set<String>, toolResults: [String: ConversationParser.ToolResult], structuredResults: [String: ToolResultData], conversationInfo: ConversationInfo, model: String?, tokenUsage: TokenUsage?, gitBranch: String?, todos: [ClaudeTodoItem])
 }
 
 /// Payload for file update events
@@ -95,6 +95,12 @@ struct FileUpdatePayload: Sendable {
     let completedToolIds: Set<String>
     let toolResults: [String: ConversationParser.ToolResult]
     let structuredResults: [String: ToolResultData]
+
+    // Model & usage fields parsed from JSONL
+    let model: String?
+    let tokenUsage: TokenUsage?
+    let gitBranch: String?
+    let todos: [ClaudeTodoItem]
 }
 
 /// Result of a tool completion detected from JSONL
@@ -220,7 +226,7 @@ extension SessionEvent: CustomStringConvertible {
             return "sessionEnded(session: \(sessionId.prefix(8)))"
         case .loadHistory(let sessionId, _):
             return "loadHistory(session: \(sessionId.prefix(8)))"
-        case .historyLoaded(let sessionId, let messages, _, _, _, _):
+        case .historyLoaded(let sessionId, let messages, _, _, _, _, _, _, _, _):
             return "historyLoaded(session: \(sessionId.prefix(8)), messages: \(messages.count))"
         case .toolCompleted(let sessionId, let toolUseId, let result):
             return "toolCompleted(session: \(sessionId.prefix(8)), tool: \(toolUseId.prefix(12)), status: \(result.status))"

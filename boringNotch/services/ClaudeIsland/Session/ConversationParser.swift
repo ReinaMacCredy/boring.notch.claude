@@ -52,6 +52,12 @@ actor ConversationParser {
         var structuredResults: [String: ToolResultData] = [:]  // Structured results keyed by tool_use_id
         var lastClearOffset: UInt64 = 0  // Offset of last /clear command (0 = none or at start)
         var clearPending: Bool = false  // True if a /clear was just detected
+
+        // Model & usage fields (mirrors ClaudeCodeManager parsing)
+        var model: String?
+        var tokenUsage: TokenUsage?
+        var gitBranch: String?
+        var todos: [ClaudeTodoItem] = []
     }
 
     /// Parsed tool result data
@@ -290,6 +296,12 @@ actor ConversationParser {
         let toolResults: [String: ToolResult]
         let structuredResults: [String: ToolResultData]
         let clearDetected: Bool
+
+        // Model & usage fields parsed from JSONL
+        let model: String?
+        let tokenUsage: TokenUsage?
+        let gitBranch: String?
+        let todos: [ClaudeTodoItem]
     }
 
     /// Parse only NEW messages since last call (efficient incremental updates)
@@ -303,7 +315,11 @@ actor ConversationParser {
                 completedToolIds: [],
                 toolResults: [:],
                 structuredResults: [:],
-                clearDetected: false
+                clearDetected: false,
+                model: nil,
+                tokenUsage: nil,
+                gitBranch: nil,
+                todos: []
             )
         }
 
@@ -321,7 +337,11 @@ actor ConversationParser {
             completedToolIds: state.completedToolIds,
             toolResults: state.toolResults,
             structuredResults: state.structuredResults,
-            clearDetected: clearDetected
+            clearDetected: clearDetected,
+            model: state.model,
+            tokenUsage: state.tokenUsage,
+            gitBranch: state.gitBranch,
+            todos: state.todos
         )
     }
 
@@ -420,16 +440,86 @@ actor ConversationParser {
                 }
             } else if line.contains("\"type\":\"user\"") || line.contains("\"type\":\"assistant\"") {
                 if let lineData = line.data(using: .utf8),
-                   let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-                   let message = parseMessageLine(json, seenToolIds: &state.seenToolIds, toolIdToName: &state.toolIdToName) {
-                    newMessages.append(message)
-                    state.messages.append(message)
+                   let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] {
+
+                    // Extract model, tokenUsage, gitBranch, todos from this line
+                    Self.extractSessionFields(from: json, into: &state)
+
+                    if let message = parseMessageLine(json, seenToolIds: &state.seenToolIds, toolIdToName: &state.toolIdToName) {
+                        newMessages.append(message)
+                        state.messages.append(message)
+                    }
                 }
             }
         }
 
         state.lastFileOffset = fileSize
         return newMessages
+    }
+
+    // MARK: - Session Field Extraction
+
+    /// Extract model, tokenUsage, gitBranch, and todos from a JSONL line
+    /// Mirrors the parsing done in ClaudeCodeManager.parseMessage/parseJSONLLine
+    private static func extractSessionFields(from json: [String: Any], into state: inout IncrementalParseState) {
+        // gitBranch is at the top level of the JSONL line
+        if let gitBranch = json["gitBranch"] as? String {
+            state.gitBranch = gitBranch
+        }
+
+        guard let messageDict = json["message"] as? [String: Any] else { return }
+
+        // model is inside the message dict (assistant messages)
+        if let model = messageDict["model"] as? String {
+            state.model = model
+        }
+
+        // token usage is inside the message dict
+        if let usage = messageDict["usage"] as? [String: Any] {
+            var tokenUsage = state.tokenUsage ?? TokenUsage()
+            tokenUsage.inputTokens = usage["input_tokens"] as? Int ?? tokenUsage.inputTokens
+            tokenUsage.outputTokens = usage["output_tokens"] as? Int ?? tokenUsage.outputTokens
+            tokenUsage.cacheReadInputTokens = usage["cache_read_input_tokens"] as? Int ?? tokenUsage.cacheReadInputTokens
+            tokenUsage.cacheCreationInputTokens = usage["cache_creation_input_tokens"] as? Int ?? tokenUsage.cacheCreationInputTokens
+            state.tokenUsage = tokenUsage
+        }
+
+        // TodoWrite is a tool_use block inside content array (assistant messages)
+        if let contentArray = messageDict["content"] as? [[String: Any]] {
+            for block in contentArray {
+                if block["type"] as? String == "tool_use",
+                   block["name"] as? String == ClaudeToolNames.todoWrite,
+                   let input = block["input"] as? [String: Any],
+                   let todos = input["todos"] as? [[String: Any]] {
+                    state.todos = parseTodoItems(todos)
+                }
+            }
+        }
+    }
+
+    /// Parse todo items from a TodoWrite tool input
+    /// Mirrors ClaudeCodeManager.parseTodos
+    private static func parseTodoItems(_ todosArray: [[String: Any]]) -> [ClaudeTodoItem] {
+        var items: [ClaudeTodoItem] = []
+        for todoDict in todosArray {
+            guard let content = todoDict["content"] as? String,
+                  let statusStr = todoDict["status"] as? String else {
+                continue
+            }
+            let status: ClaudeTodoItem.TodoStatus
+            switch statusStr {
+            case "pending":
+                status = .pending
+            case "in_progress":
+                status = .inProgress
+            case "completed":
+                status = .completed
+            default:
+                status = .pending
+            }
+            items.append(ClaudeTodoItem(content: content, status: status))
+        }
+        return items
     }
 
     /// Get set of completed tool IDs for a session
@@ -445,6 +535,26 @@ actor ConversationParser {
     /// Get structured tool results for a session
     func structuredResults(for sessionId: String) -> [String: ToolResultData] {
         return incrementalState[sessionId]?.structuredResults ?? [:]
+    }
+
+    /// Get parsed model name for a session
+    func model(for sessionId: String) -> String? {
+        return incrementalState[sessionId]?.model
+    }
+
+    /// Get parsed token usage for a session
+    func tokenUsage(for sessionId: String) -> TokenUsage? {
+        return incrementalState[sessionId]?.tokenUsage
+    }
+
+    /// Get parsed git branch for a session
+    func gitBranch(for sessionId: String) -> String? {
+        return incrementalState[sessionId]?.gitBranch
+    }
+
+    /// Get parsed todos for a session
+    func todos(for sessionId: String) -> [ClaudeTodoItem] {
+        return incrementalState[sessionId]?.todos ?? []
     }
 
     /// Reset incremental state for a session (call when reloading)

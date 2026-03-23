@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		SD62BLD001 /* SessionDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = SD62REF001 /* SessionDiscovery.swift */; };
+		IDF63BLD01 /* IDEFocuser.swift in Sources */ = {isa = PBXBuildFile; fileRef = IDF63REF01 /* IDEFocuser.swift */; };
 		CCHBLD001 /* ClaudeCodeHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCHREF001 /* ClaudeCodeHelpers.swift */; };
 		093038039EC964BFD2526F73 /* EventMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F67C3AC42EBB588A3AB4CD /* EventMonitor.swift */; };
 		0C93E166A65E8EA57FE22439 /* NotchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8661C6E7125841891286E3CC /* NotchViewModel.swift */; };
@@ -370,6 +372,8 @@
 		59D8C23B2E589FAA00147B33 /* VolumeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeManager.swift; sourceTree = "<group>"; };
 		5AFC2C8B02940BA29874EE86 /* SessionPhaseHelpers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionPhaseHelpers.swift; sourceTree = "<group>"; };
 		CCHREF001 /* ClaudeCodeHelpers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeCodeHelpers.swift; sourceTree = "<group>"; };
+		SD62REF001 /* SessionDiscovery.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionDiscovery.swift; sourceTree = "<group>"; };
+		IDF63REF01 /* IDEFocuser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IDEFocuser.swift; sourceTree = "<group>"; };
 		5F6A18794702F0753FEF2578 /* TerminalVisibilityDetector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TerminalVisibilityDetector.swift; sourceTree = "<group>"; };
 		614ECF2DEB48F11D22D7C27A /* claude-island-state.py */ = {isa = PBXFileReference; includeInIndex = 1; path = "claude-island-state.py"; sourceTree = "<group>"; };
 		61A5D5A4A8320CF9C8BB28F0 /* ClaudeInstancesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeInstancesView.swift; sourceTree = "<group>"; };
@@ -521,6 +525,7 @@
 				AE7DED90D78274B921E339DC /* AgentFileWatcher.swift */,
 				CE818EA47ACC2DADC6EC5A76 /* ClaudeSessionMonitor.swift */,
 				4CFB12C61682ABE05F79C0C7 /* ConversationParser.swift */,
+				SD62REF001 /* SessionDiscovery.swift */,
 			);
 			name = Session;
 			path = Session;
@@ -863,6 +868,7 @@
 				1F1823D784899D7E356B3BC0 /* MCPToolFormatter.swift */,
 				5F6A18794702F0753FEF2578 /* TerminalVisibilityDetector.swift */,
 				0E049FF511558D2979897469 /* RealHomeDirectory.swift */,
+				IDF63REF01 /* IDEFocuser.swift */,
 			);
 			name = utilities;
 			path = utilities;
@@ -1445,6 +1451,8 @@
 				U5G1SVC001 /* UsageService.swift in Sources */,
 				U5G1SVC002 /* UsageStatsView.swift in Sources */,
 				U5G1SVC003 /* UsageThresholdNotificationView.swift in Sources */,
+				SD62BLD001 /* SessionDiscovery.swift in Sources */,
+				IDF63BLD01 /* IDEFocuser.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

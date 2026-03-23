@@ -328,7 +328,7 @@ struct ContentView: View {
         .onAppear {
             claudeVM.boringVM = vm
             vm.claudeVM = claudeVM
-            showsClaudeClosedView = !claudeSessionMonitor.instances.isEmpty
+            showsClaudeClosedView = !claudeSessionMonitor.instances.isEmpty || !sessionDiscovery.availableSessions.isEmpty
             displayedPermissionSession = claudeSessionMonitor.instances.first { $0.phase.isWaitingForApproval }
             hasPendingPermissions = displayedPermissionSession != nil
         }
@@ -864,7 +864,7 @@ struct ContentView: View {
             claudeClosedDismissTask = Task { @MainActor in
                 try? await Task.sleep(for: .seconds(5))
                 guard !Task.isCancelled else { return }
-                guard claudeSessionMonitor.instances.isEmpty else { return }
+                guard claudeSessionMonitor.instances.isEmpty, sessionDiscovery.availableSessions.isEmpty else { return }
                 withAnimation(.smooth) {
                     showsClaudeClosedView = false
                 }

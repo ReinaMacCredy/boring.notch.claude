@@ -27,7 +27,7 @@ struct ContentView: View {
     // across notch open/close cycles and is shared with ClaudeClosedView.
     @StateObject private var claudeSessionMonitor = ClaudeSessionMonitor()
     @StateObject private var claudeVM = NotchViewModel()
-
+    @ObservedObject var claudeCodeManager = ClaudeCodeManager.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
@@ -113,6 +113,12 @@ struct ContentView: View {
             && !vm.hideOnClosed
         {
             chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
+        } else if !coordinator.expandingView.show && vm.notchState == .closed
+            && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView]
+            && !claudeCodeManager.availableSessions.isEmpty && !vm.hideOnClosed
+        {
+            // Claude Code compact view - dots are below the notch, no side extension needed
+            // chinWidth stays at vm.closedNotchSize.width (default)
         }
 
         return chinWidth

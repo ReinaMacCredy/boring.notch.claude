@@ -18,6 +18,13 @@ actor SessionStore {
     /// Logger for session store (nonisolated static for cross-context access)
     nonisolated static let logger = Logger(subsystem: "com.boringnotch", category: "Session")
 
+    /// Cached ISO8601 formatter (expensive to create per-call)
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     // MARK: - State
 
     /// All sessions keyed by sessionId
@@ -311,9 +318,7 @@ actor SessionStore {
     /// Parse ISO8601 timestamp string
     private func parseTimestamp(_ timestampStr: String?) -> Date? {
         guard let str = timestampStr else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: str)
+        return Self.iso8601Formatter.date(from: str)
     }
 
     // MARK: - Permission Processing

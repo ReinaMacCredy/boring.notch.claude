@@ -24,6 +24,13 @@ actor ConversationParser {
     /// Logger for conversation parser (nonisolated static for cross-context access)
     nonisolated static let logger = Logger(subsystem: "com.claudeisland", category: "Parser")
 
+    /// Cached ISO8601 formatter (expensive to create per-call)
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     /// Cache of parsed conversation info, keyed by session file path
     private var cache: [String: CachedInfo] = [:]
 
@@ -108,8 +115,7 @@ actor ConversationParser {
         var firstUserMessage: String?
         var lastUserMessageDate: Date?
 
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let formatter = Self.iso8601Formatter
 
         for line in lines {
             guard let lineData = line.data(using: .utf8),
@@ -483,9 +489,7 @@ actor ConversationParser {
 
         let timestamp: Date
         if let timestampStr = json["timestamp"] as? String {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            timestamp = formatter.date(from: timestampStr) ?? Date()
+            timestamp = Self.iso8601Formatter.date(from: timestampStr) ?? Date()
         } else {
             timestamp = Date()
         }

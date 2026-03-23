@@ -42,22 +42,20 @@ final class ClaudeCodeManager: ObservableObject {
     private let activityGracePeriod: TimeInterval = 2.0
 
     /// True if any session has activity (thinking, active tools, or needs permission)
-    /// Includes a grace period to prevent flickering when switching between tools
+    /// Includes a grace period to prevent flickering when switching between tools.
+    /// Pure read-only -- lastActivityTime is updated at mutation sites, not here.
     var hasAnySessionActivity: Bool {
         // Check if any session is active (thinking or has active tools) or needs permission
         for sessionState in sessionStates.values {
             if sessionState.isActive || sessionState.needsPermission {
-                lastActivityTime = Date()
                 return true
             }
         }
         // Also check selected session's state
         if state.isActive || state.needsPermission {
-            lastActivityTime = Date()
             return true
         }
         if !sessionsNeedingPermission.isEmpty {
-            lastActivityTime = Date()
             return true
         }
 
@@ -69,6 +67,11 @@ final class ClaudeCodeManager: ObservableObject {
         }
 
         return false
+    }
+
+    /// Call when a session becomes active (thinking, tool started, permission needed)
+    private func markActivity() {
+        lastActivityTime = Date()
     }
 
     // MARK: - Private Properties
@@ -85,6 +88,9 @@ final class ClaudeCodeManager: ObservableObject {
     private var lastReadPosition: UInt64 = 0
 
     private var sessionScanTimer: Timer?
+
+    /// Last observed modification time of stats-cache.json (skip re-reads when unchanged)
+    private var lastStatsMtime: Date?
 
     /// Timer to detect when a tool is waiting for permission (no result after delay)
     private var permissionCheckTimer: Timer?
@@ -140,6 +146,9 @@ final class ClaudeCodeManager: ObservableObject {
 
             var sessions: [ClaudeSession] = []
 
+            // Snapshot running apps once to avoid repeated IPC in the loop
+            let runningApps = NSWorkspace.shared.runningApplications
+
             for lockFile in lockFiles {
                 guard let data = fm.contents(atPath: lockFile.path) else {
                     continue
@@ -149,7 +158,7 @@ final class ClaudeCodeManager: ObservableObject {
                     let session = try JSONDecoder().decode(ClaudeSession.self, from: data)
 
                     // Verify process is still running
-                    if isProcessRunning(pid: session.pid) {
+                    if isProcessRunning(pid: session.pid, runningApps: runningApps) {
                         sessions.append(session)
                     }
                 } catch {
@@ -158,9 +167,11 @@ final class ClaudeCodeManager: ObservableObject {
             }
 
             // Only log when session count changes
+            #if DEBUG
             if sessions.count != availableSessions.count {
                 print("[ClaudeCode] Active sessions: \(sessions.count)")
             }
+            #endif
             availableSessions = sessions
 
             // Auto-select if only one session and none selected
@@ -201,7 +212,9 @@ final class ClaudeCodeManager: ObservableObject {
     func selectSession(_ session: ClaudeSession) {
         guard session != selectedSession else { return }
 
+        #if DEBUG
         print("[ClaudeCode] Selecting session: \(session.displayName)")
+        #endif
         selectedSession = session
         state = ClaudeCodeState()
         state.cwd = session.workspaceFolders.first ?? ""
@@ -232,11 +245,11 @@ final class ClaudeCodeManager: ObservableObject {
         }
     }
 
-    private func isProcessRunning(pid: Int) -> Bool {
+    private func isProcessRunning(pid: Int, runningApps: [NSRunningApplication]? = nil) -> Bool {
         // Use NSRunningApplication or check /proc to avoid sandbox restrictions with kill()
         // The kill() approach doesn't work in sandboxed apps
-        let runningApps = NSWorkspace.shared.runningApplications
-        if runningApps.contains(where: { $0.processIdentifier == Int32(pid) }) {
+        let apps = runningApps ?? NSWorkspace.shared.runningApplications
+        if apps.contains(where: { $0.processIdentifier == Int32(pid) }) {
             return true
         }
 
@@ -267,10 +280,14 @@ final class ClaudeCodeManager: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("[ClaudeCode] Looking for project dir with key: \(projectKey)")
+        #endif
         let projectDir = projectsDir.appendingPathComponent(projectKey)
+        #if DEBUG
         print("[ClaudeCode] Project dir path: \(projectDir.path)")
         print("[ClaudeCode] Project dir exists: \(FileManager.default.fileExists(atPath: projectDir.path))")
+        #endif
 
         // Find the most recent JSONL file (not agent files)
         guard let jsonlFile = findCurrentSessionFile(in: projectDir) else {
@@ -278,7 +295,9 @@ final class ClaudeCodeManager: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("[ClaudeCode] Watching session file: \(jsonlFile.path)")
+        #endif
 
         // Open file for reading
         do {
@@ -361,7 +380,9 @@ final class ClaudeCodeManager: ObservableObject {
             return
         }
 
+        #if DEBUG
         print("[ClaudeCode-Multi] Starting to watch session: \(session.displayName)")
+        #endif
 
         // Initialize state for this session
         var sessionState = ClaudeCodeState()
@@ -423,7 +444,9 @@ final class ClaudeCodeManager: ObservableObject {
         // Update sessionsNeedingPermission
         sessionsNeedingPermission.removeAll { $0.id == sessionId }
 
+        #if DEBUG
         print("[ClaudeCode-Multi] Stopped watching session: \(sessionId)")
+        #endif
     }
 
     /// Load recent history for a specific session
@@ -478,6 +501,7 @@ final class ClaudeCodeManager: ObservableObject {
         // Any file activity means Claude is working (including compacting/summarizing)
         // Set isThinking immediately when we detect new data being written
         sessionStates[sessionId]?.isThinking = true
+        markActivity()
 
         let lines = content.components(separatedBy: .newlines)
         for line in lines where !line.isEmpty {
@@ -549,11 +573,13 @@ final class ClaudeCodeManager: ObservableObject {
                 }
                 // Either way, Claude is now thinking (responding to user or continuing after tool)
                 sessionStates[sessionId]?.isThinking = true
+                markActivity()
             } else if role == "assistant" {
                 // Assistant message logged = Claude finished this response
                 // Keep isThinking true - the idle timer will set it to false after delay
                 // This prevents the dot from flickering between responses
                 sessionStates[sessionId]?.isThinking = true
+                markActivity()
             }
         }
 
@@ -573,6 +599,7 @@ final class ClaudeCodeManager: ObservableObject {
                             )
                             if sessionStates[sessionId]?.activeTools.contains(where: { $0.id == toolId }) != true {
                                 sessionStates[sessionId]?.activeTools.append(tool)
+                                markActivity()
                                 startPermissionCheckForSession(sessionId: sessionId, toolId: toolId, toolName: toolName)
                             }
                         }
@@ -600,6 +627,7 @@ final class ClaudeCodeManager: ObservableObject {
                     // IMPORTANT: Set isThinking=true immediately after tool completion
                     // Claude will always respond after receiving a tool result, so we stay active
                     sessionStates[sessionId]?.isThinking = true
+                    markActivity()
                 }
             }
         }
@@ -648,6 +676,7 @@ final class ClaudeCodeManager: ObservableObject {
                     if let tool = sessionStates[sessionId]?.activeTools.first(where: { $0.id == toolId }) {
                         sessionStates[sessionId]?.needsPermission = true
                         sessionStates[sessionId]?.pendingPermissionTool = tool.toolName
+                        markActivity()
                         break
                     }
                 }
@@ -759,6 +788,7 @@ final class ClaudeCodeManager: ObservableObject {
         // Any file activity means Claude is working (including compacting/summarizing)
         // Set isThinking immediately when we detect new data being written
         state.isThinking = true
+        markActivity()
 
         let lines = content.components(separatedBy: .newlines)
         for line in lines where !line.isEmpty {
@@ -811,10 +841,12 @@ final class ClaudeCodeManager: ObservableObject {
             if role == "user" {
                 // User message logged - Claude is about to respond
                 state.isThinking = true
+                markActivity()
             } else if role == "assistant" {
                 // Assistant message logged = Claude finished this response
                 // Keep isThinking true - the idle timer will set it to false after delay
                 state.isThinking = true
+                markActivity()
             }
         }
 
@@ -859,6 +891,7 @@ final class ClaudeCodeManager: ObservableObject {
                             // Add to active tools
                             if !state.activeTools.contains(where: { $0.id == toolId }) {
                                 state.activeTools.append(tool)
+                                markActivity()
                                 // Start tracking this tool for permission check
                                 startPermissionCheck(toolId: toolId, toolName: toolName)
                             }
@@ -894,6 +927,7 @@ final class ClaudeCodeManager: ObservableObject {
                     // IMPORTANT: Set isThinking=true immediately after tool completion
                     // Claude will always respond after receiving a tool result, so we stay active
                     state.isThinking = true
+                    markActivity()
                 }
             }
         }
@@ -995,16 +1029,20 @@ final class ClaudeCodeManager: ObservableObject {
                 // This tool has been pending too long - likely needs permission
                 if let tool = state.activeTools.first(where: { $0.id == toolId }) {
                     if !state.needsPermission {
+                        #if DEBUG
                         print("[ClaudeCode] ⚠️ Tool '\(tool.toolName)' waiting for permission")
+                        #endif
                     }
                     state.needsPermission = true
                     state.pendingPermissionTool = tool.toolName
+                    markActivity()
                     return
                 } else {
                     // Tool not in activeTools - still show permission indicator
                     if !state.needsPermission {
                         state.needsPermission = true
                         state.pendingPermissionTool = "Tool"
+                        markActivity()
                     }
                     return
                 }
@@ -1023,7 +1061,9 @@ final class ClaudeCodeManager: ObservableObject {
         }
 
         let ideName = targetSession.ideName.lowercased()
+        #if DEBUG
         print("[ClaudeCode] Attempting to focus IDE: \(targetSession.ideName)")
+        #endif
 
         // Map common IDE names to bundle identifiers
         let bundleIdentifiers: [String] = {
@@ -1044,7 +1084,9 @@ final class ClaudeCodeManager: ObservableObject {
         // Try to activate by bundle identifier first
         for bundleId in bundleIdentifiers {
             if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+                #if DEBUG
                 print("[ClaudeCode] Found app by bundle ID: \(bundleId)")
+                #endif
                 app.activate(options: [.activateIgnoringOtherApps])
                 return
             }
@@ -1053,7 +1095,9 @@ final class ClaudeCodeManager: ObservableObject {
         // Fallback: find by PID
         let runningApps = NSWorkspace.shared.runningApplications
         if let app = runningApps.first(where: { $0.processIdentifier == Int32(targetSession.pid) }) {
+            #if DEBUG
             print("[ClaudeCode] Found app by PID: \(targetSession.pid)")
+            #endif
             app.activate(options: [.activateIgnoringOtherApps])
             return
         }
@@ -1062,7 +1106,9 @@ final class ClaudeCodeManager: ObservableObject {
         if let app = runningApps.first(where: {
             $0.localizedName?.lowercased().contains(ideName) == true
         }) {
+            #if DEBUG
             print("[ClaudeCode] Found app by name match: \(app.localizedName ?? "unknown")")
+            #endif
             app.activate(options: [.activateIgnoringOtherApps])
             return
         }
@@ -1094,11 +1140,23 @@ final class ClaudeCodeManager: ObservableObject {
     // MARK: - Daily Stats
 
     /// Load daily stats from ~/.claude/stats-cache.json
+    /// Skips re-reading when the file's modification time hasn't changed.
     func loadDailyStats() {
         let statsFile = claudeDir.appendingPathComponent("stats-cache.json")
 
-        guard FileManager.default.fileExists(atPath: statsFile.path),
-              let data = FileManager.default.contents(atPath: statsFile.path) else {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: statsFile.path) else { return }
+
+        // Check modification time -- skip if unchanged since last read
+        if let attrs = try? fm.attributesOfItem(atPath: statsFile.path),
+           let mtime = attrs[.modificationDate] as? Date {
+            if let lastMtime = lastStatsMtime, mtime == lastMtime {
+                return
+            }
+            lastStatsMtime = mtime
+        }
+
+        guard let data = fm.contents(atPath: statsFile.path) else {
             return
         }
 

@@ -30,7 +30,9 @@ struct DynamicNotchApp: App {
         SettingsWindowController.shared.setUpdaterController(updaterController)
 
         // Eagerly init UsageService so token data is ready when notch opens
-        _ = UsageService.shared
+        if Defaults[.enableClaudeCode] {
+            _ = UsageService.shared
+        }
     }
 
     var body: some Scene {

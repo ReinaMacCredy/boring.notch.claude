@@ -15,8 +15,9 @@ struct ClaudeCrabIcon: View {
 
     @State private var legPhase: Int = 0
 
-    // Timer for leg animation
-    private let legTimer = Timer.publish(every: 0.15, on: .main, in: .common).autoconnect()
+    // Timer for leg animation -- not auto-connected; managed via onChange(of: animateLegs)
+    private let legTimer = Timer.publish(every: 0.15, on: .main, in: .common)
+    @State private var legTimerCancellable: Cancellable?
 
     init(size: CGFloat = 16, color: Color = TerminalColors.prompt, animateLegs: Bool = false) {
         self.size = size
@@ -85,8 +86,24 @@ struct ClaudeCrabIcon: View {
         }
         .frame(width: size * (66.0 / 52.0), height: size)
         .onReceive(legTimer) { _ in
+            legPhase = (legPhase + 1) % 4
+        }
+        .onAppear {
             if animateLegs {
-                legPhase = (legPhase + 1) % 4
+                legTimerCancellable = legTimer.connect()
+            }
+        }
+        .onDisappear {
+            legTimerCancellable?.cancel()
+            legTimerCancellable = nil
+        }
+        .onChange(of: animateLegs) { _, newValue in
+            if newValue {
+                legTimerCancellable = legTimer.connect()
+            } else {
+                legTimerCancellable?.cancel()
+                legTimerCancellable = nil
+                legPhase = 0
             }
         }
     }

@@ -128,6 +128,8 @@ class HookSocketServer {
     /// Key: "sessionId:toolName:serializedInput" -> Queue of tool_use_ids (FIFO)
     /// PermissionRequest events don't include tool_use_id, so we cache from PreToolUse
     private var toolUseIdCache: [String: [String]] = [:]
+    /// Tracks when each cache key was last written (for stale entry cleanup)
+    private var toolUseIdCacheTimestamps: [String: Date] = [:]
     private let cacheLock = NSLock()
 
     private init() {
@@ -160,6 +162,20 @@ class HookSocketServer {
             }
         }
         permissionsLock.unlock()
+
+        // Clean stale toolUseId cache entries (same threshold as permissions)
+        cacheLock.lock()
+        let staleCacheKeys = toolUseIdCacheTimestamps.filter {
+            now.timeIntervalSince($0.value) > permissionTimeoutSeconds
+        }.map { $0.key }
+        for key in staleCacheKeys {
+            toolUseIdCache.removeValue(forKey: key)
+            toolUseIdCacheTimestamps.removeValue(forKey: key)
+        }
+        cacheLock.unlock()
+        if !staleCacheKeys.isEmpty {
+            logger.debug("Cleaned up \(staleCacheKeys.count) stale toolUseId cache entries")
+        }
     }
 
     /// Start the socket server
@@ -342,6 +358,7 @@ class HookSocketServer {
             toolUseIdCache[key] = []
         }
         toolUseIdCache[key]?.append(toolUseId)
+        toolUseIdCacheTimestamps[key] = Date()
         cacheLock.unlock()
 
         logger.debug("Cached tool_use_id for \(event.sessionId.prefix(8), privacy: .public) tool:\(event.tool ?? "?", privacy: .public) id:\(toolUseId.prefix(12), privacy: .public)")
@@ -362,6 +379,7 @@ class HookSocketServer {
 
         if queue.isEmpty {
             toolUseIdCache.removeValue(forKey: key)
+            toolUseIdCacheTimestamps.removeValue(forKey: key)
         } else {
             toolUseIdCache[key] = queue
         }
@@ -376,6 +394,7 @@ class HookSocketServer {
         let keysToRemove = toolUseIdCache.keys.filter { $0.hasPrefix("\(sessionId):") }
         for key in keysToRemove {
             toolUseIdCache.removeValue(forKey: key)
+            toolUseIdCacheTimestamps.removeValue(forKey: key)
         }
         cacheLock.unlock()
 

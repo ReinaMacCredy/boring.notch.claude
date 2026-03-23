@@ -22,14 +22,43 @@ struct ClaudeProcessInfo: Sendable {
     }
 }
 
+/// Thread-safe cache for process tree results
+private final class ProcessTreeCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cachedTree: [Int: ClaudeProcessInfo] = [:]
+    private var lastBuildTime: Date = .distantPast
+    private let ttl: TimeInterval = 2.0
+
+    func get() -> [Int: ClaudeProcessInfo]? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard Date().timeIntervalSince(lastBuildTime) < ttl else { return nil }
+        return cachedTree
+    }
+
+    func set(_ tree: [Int: ClaudeProcessInfo]) {
+        lock.lock()
+        defer { lock.unlock() }
+        cachedTree = tree
+        lastBuildTime = Date()
+    }
+}
+
 /// Builds and queries the system process tree
 struct ProcessTreeBuilder: Sendable {
     nonisolated static let shared = ProcessTreeBuilder()
 
+    private static let cache = ProcessTreeCache()
+
     private nonisolated init() {}
 
     /// Build a process tree mapping PID -> ClaudeProcessInfo
+    /// Results are cached for 2 seconds to avoid repeated /bin/ps forks.
     nonisolated func buildTree() -> [Int: ClaudeProcessInfo] {
+        if let cached = Self.cache.get() {
+            return cached
+        }
+
         guard let output = ProcessExecutor.shared.runSyncOrNil("/bin/ps", arguments: ["-eo", "pid,ppid,tty,comm"]) else {
             return [:]
         }
@@ -51,6 +80,7 @@ struct ProcessTreeBuilder: Sendable {
             tree[pid] = ClaudeProcessInfo(pid: pid, ppid: ppid, command: command, tty: tty)
         }
 
+        Self.cache.set(tree)
         return tree
     }
 

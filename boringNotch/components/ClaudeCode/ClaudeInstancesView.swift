@@ -461,34 +461,6 @@ struct IconButton: View {
     }
 }
 
-// MARK: - Compact Terminal Button (inline in description)
-
-struct CompactTerminalButton: View {
-    let isEnabled: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        Button {
-            if isEnabled {
-                onTap()
-            }
-        } label: {
-            HStack(spacing: 2) {
-                Image(systemName: "terminal")
-                    .font(.system(size: 8, weight: .medium))
-                Text("Go to Terminal")
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .foregroundColor(isEnabled ? .white.opacity(0.9) : .white.opacity(0.3))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(isEnabled ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
-            .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - Terminal Button
 
 struct TerminalButton: View {

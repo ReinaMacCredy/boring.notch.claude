@@ -802,10 +802,6 @@ final class ClaudeCodeManager: ObservableObject {
             parseMessage(message)
         }
 
-        // Parse tool use results
-        if json["toolUseResult"] != nil {
-            // Tool completed - could track timing here
-        }
     }
 
     private func parseMessage(_ message: [String: Any]) {

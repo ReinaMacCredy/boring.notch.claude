@@ -53,7 +53,7 @@ actor ConversationParser {
         var lastClearOffset: UInt64 = 0  // Offset of last /clear command (0 = none or at start)
         var clearPending: Bool = false  // True if a /clear was just detected
 
-        // Model & usage fields (mirrors ClaudeCodeManager parsing)
+        // Model & usage fields (extracted from JSONL messages)
         var model: String?
         var tokenUsage: TokenUsage?
         var gitBranch: String?
@@ -460,7 +460,7 @@ actor ConversationParser {
     // MARK: - Session Field Extraction
 
     /// Extract model, tokenUsage, gitBranch, and todos from a JSONL line
-    /// Mirrors the parsing done in ClaudeCodeManager.parseMessage/parseJSONLLine
+    /// Extracts session-level fields from the raw JSONL JSON
     private static func extractSessionFields(from json: [String: Any], into state: inout IncrementalParseState) {
         // gitBranch is at the top level of the JSONL line
         if let gitBranch = json["gitBranch"] as? String {
@@ -498,7 +498,7 @@ actor ConversationParser {
     }
 
     /// Parse todo items from a TodoWrite tool input
-    /// Mirrors ClaudeCodeManager.parseTodos
+    /// Extracts ClaudeTodoItem list from the raw JSON array
     private static func parseTodoItems(_ todosArray: [[String: Any]]) -> [ClaudeTodoItem] {
         var items: [ClaudeTodoItem] = []
         for todoDict in todosArray {

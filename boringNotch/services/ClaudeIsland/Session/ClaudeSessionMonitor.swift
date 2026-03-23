@@ -108,11 +108,10 @@ class ClaudeSessionMonitor: ObservableObject {
                 decision: "ask"
             )
 
-            // Clear approval state so UI stops showing the stale permission.
-            // The socket is already closed; leaving phase as .waitingForApproval
-            // causes subsequent button taps to target a dead socket.
+            // Clear the permission banner without marking the tool as running.
+            // The CLI will show its own interactive prompt in the terminal.
             await SessionStore.shared.process(
-                .permissionApproved(sessionId: sessionId, toolUseId: permission.toolUseId)
+                .permissionDismissed(sessionId: sessionId, toolUseId: permission.toolUseId)
             )
         }
     }

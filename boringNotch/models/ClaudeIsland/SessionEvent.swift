@@ -24,6 +24,9 @@ enum SessionEvent: Sendable {
     /// User denied a permission request
     case permissionDenied(sessionId: String, toolUseId: String, reason: String?)
 
+    /// Permission was dismissed without approval (e.g. "ask" flow -- CLI handles it interactively)
+    case permissionDismissed(sessionId: String, toolUseId: String)
+
     /// Permission socket failed (connection died before response)
     case permissionSocketFailed(sessionId: String, toolUseId: String)
 
@@ -201,6 +204,8 @@ extension SessionEvent: CustomStringConvertible {
             return "permissionApproved(session: \(sessionId.prefix(8)), tool: \(toolUseId.prefix(12)))"
         case .permissionDenied(let sessionId, let toolUseId, _):
             return "permissionDenied(session: \(sessionId.prefix(8)), tool: \(toolUseId.prefix(12)))"
+        case .permissionDismissed(let sessionId, let toolUseId):
+            return "permissionDismissed(session: \(sessionId.prefix(8)), tool: \(toolUseId.prefix(12)))"
         case .permissionSocketFailed(let sessionId, let toolUseId):
             return "permissionSocketFailed(session: \(sessionId.prefix(8)), tool: \(toolUseId.prefix(12)))"
         case .fileUpdated(let payload):

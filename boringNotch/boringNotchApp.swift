@@ -430,6 +430,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 Task {
                     await SessionStore.shared.process(.hookReceived(event))
                 }
+
+                if event.sessionPhase == .processing {
+                    Task { @MainActor in
+                        InterruptWatcherManager.shared.startWatching(
+                            sessionId: event.sessionId,
+                            cwd: event.cwd
+                        )
+                    }
+                }
+
+                if event.status == "ended" {
+                    Task { @MainActor in
+                        InterruptWatcherManager.shared.stopWatching(sessionId: event.sessionId)
+                    }
+                }
+
                 if event.event == "Stop" {
                     HookSocketServer.shared.cancelPendingPermissions(sessionId: event.sessionId)
                 }

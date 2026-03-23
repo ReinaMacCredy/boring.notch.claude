@@ -59,6 +59,9 @@ actor SessionStore {
         case .permissionDenied(let sessionId, let toolUseId, let reason):
             await processPermissionDenied(sessionId: sessionId, toolUseId: toolUseId, reason: reason)
 
+        case .permissionDismissed(let sessionId, let toolUseId):
+            await processPermissionDismissed(sessionId: sessionId, toolUseId: toolUseId)
+
         case .permissionSocketFailed(let sessionId, let toolUseId):
             await processSocketFailure(sessionId: sessionId, toolUseId: toolUseId)
 
@@ -314,6 +317,17 @@ actor SessionStore {
     }
 
     // MARK: - Permission Processing
+
+    private func processPermissionDismissed(sessionId: String, toolUseId: String) {
+        guard var session = sessions[sessionId] else { return }
+
+        // Clear the permission UI without marking the tool as running.
+        // Transition to waitingForInput -- the CLI handles the interaction.
+        if case .waitingForApproval(let ctx) = session.phase, ctx.toolUseId == toolUseId {
+            session.phase = .waitingForInput
+            sessions[sessionId] = session
+        }
+    }
 
     private func processPermissionApproved(sessionId: String, toolUseId: String) async {
         guard var session = sessions[sessionId] else { return }

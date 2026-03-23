@@ -23,6 +23,10 @@ struct ContentView: View {
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var volumeManager = VolumeManager.shared
+    // Claude Code state lives here (not in ClaudeCodeTabView) so it persists
+    // across notch open/close cycles and is shared with ClaudeClosedView.
+    @StateObject private var claudeSessionMonitor = ClaudeSessionMonitor()
+    @StateObject private var claudeVM = NotchViewModel()
     @ObservedObject var claudeCodeManager = ClaudeCodeManager.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
@@ -31,15 +35,27 @@ struct ContentView: View {
     @State private var gestureProgress: CGFloat = .zero
 
     @State private var haptics: Bool = false
+    @State private var hasPendingPermissions: Bool = false
+    @State private var displayedPermissionSession: SessionState?
+    @State private var showsClaudeClosedView: Bool = false
+    @State private var permissionDismissTask: Task<Void, Never>?
+    @State private var claudeClosedDismissTask: Task<Void, Never>?
+    @State private var musicPeekActive: Bool = false
+    @State private var musicPeekTask: Task<Void, Never>?
 
     @Namespace var albumArtNamespace
 
     @Default(.useMusicVisualizer) var useMusicVisualizer
 
     @Default(.showNotHumanFace) var showNotHumanFace
+    @Default(.notchTransitionStyle) var notchTransitionStyle
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
+    private let permissionBannerAnimation = Animation.spring(
+        response: 0.45, dampingFraction: 1.0, blendDuration: 0
+    )
+    private let permissionDismissAnimation = Animation.easeOut(duration: 0.25)
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
@@ -66,6 +82,27 @@ struct ContentView: View {
             && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
         {
             chinWidth = 640
+        } else if coordinator.expandingView.type == .usageThreshold && coordinator.expandingView.show
+            && vm.notchState == .closed && Defaults[.showUsageThresholdNotifications]
+        {
+            chinWidth = 640
+        } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed
+            && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView]
+            && !claudeSessionMonitor.instances.isEmpty && claudeHasVisibleActivity && !vm.hideOnClosed
+        {
+            // Claude Code (priority): expand for crab + dots (left) + spinner (right)
+            let hasActivity = claudeSessionMonitor.instances.contains {
+                $0.phase == .processing || $0.phase == .compacting ||
+                $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
+            }
+            if hasActivity {
+                let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 2))
+                // Left: crab(24) + dots(10 each) + spacing(8)
+                let leftWidth: CGFloat = 24 + (dotCount * 10) + 8
+                // Right: spinner/checkmark
+                let rightWidth: CGFloat = max(0, vm.effectiveClosedNotchHeight - 12) + 10
+                chinWidth += leftWidth + rightWidth
+            }
         } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
             && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle)
             && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed
@@ -85,6 +122,67 @@ struct ContentView: View {
         }
 
         return chinWidth
+    }
+
+    private var claudeHasVisibleActivity: Bool {
+        claudeSessionMonitor.instances.contains {
+            $0.phase == .processing || $0.phase == .compacting ||
+            $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
+        }
+    }
+
+    private var claudeTransition: AnyTransition {
+        switch notchTransitionStyle {
+        case .crossFadeScale:
+            return .asymmetric(
+                insertion: .opacity,
+                removal: .opacity.combined(with: .scale(scale: 0.96))
+            )
+        case .crossFade, .zStack:
+            return .opacity
+        case .slide:
+            return .asymmetric(
+                insertion: .opacity.combined(with: .move(edge: .leading)),
+                removal: .opacity.combined(with: .move(edge: .trailing))
+            )
+        case .quickSwap:
+            return .opacity
+        case .staggered:
+            return .asymmetric(
+                insertion: .opacity.animation(.easeIn(duration: 0.3).delay(0.2)),
+                removal: .opacity.animation(.easeOut(duration: 0.25))
+            )
+        }
+    }
+
+    private var musicTransition: AnyTransition {
+        switch notchTransitionStyle {
+        case .crossFadeScale:
+            return .opacity.combined(with: .scale(scale: 0.96))
+        case .crossFade, .zStack:
+            return .opacity
+        case .slide:
+            return .asymmetric(
+                insertion: .opacity.combined(with: .move(edge: .trailing)),
+                removal: .opacity.combined(with: .move(edge: .leading))
+            )
+        case .quickSwap:
+            return .opacity
+        case .staggered:
+            return .asymmetric(
+                insertion: .opacity.animation(.easeIn(duration: 0.3).delay(0.2)),
+                removal: .opacity.animation(.easeOut(duration: 0.25))
+            )
+        }
+    }
+
+    private var contentSwapAnimation: Animation {
+        switch notchTransitionStyle {
+        case .quickSwap:
+            return .easeInOut(duration: 0.2)
+        default:
+            return .spring(response: 0.4, dampingFraction: 0.85)
+        }
     }
 
     var body: some View {
@@ -132,7 +230,11 @@ struct ContentView: View {
                         
                         return view
                             .animation(vm.notchState == .open ? openAnimation : closeAnimation, value: vm.notchState)
+                            .animation(openAnimation, value: vm.notchSize)
                             .animation(.smooth, value: gestureProgress)
+                            .animation(contentSwapAnimation, value: musicManager.isPlaying || !musicManager.isPlayerIdle)
+                            .animation(contentSwapAnimation, value: musicPeekActive)
+                            .animation(permissionBannerAnimation, value: hasPendingPermissions)
                     }
                     .contentShape(Rectangle())
                     .onHover { hovering in
@@ -150,6 +252,7 @@ struct ContentView: View {
                     .conditionalModifier(Defaults[.closeGestureEnabled] && Defaults[.enableGestures]) { view in
                         view
                             .panGesture(direction: .up) { translation, phase in
+                                guard coordinator.currentView != .claudeCode else { return }
                                 handleUpGesture(translation: translation, phase: phase)
                             }
                     }
@@ -160,7 +263,7 @@ struct ContentView: View {
                                 try? await Task.sleep(for: .milliseconds(100))
                                 guard !Task.isCancelled else { return }
                                 await MainActor.run {
-                                    if self.vm.notchState == .open && !self.isHovering && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
+                                    if self.vm.notchState == .open && !self.isHovering && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose && !self.claudeVM.isPinned {
                                         self.vm.close()
                                     }
                                 }
@@ -175,13 +278,13 @@ struct ContentView: View {
                         }
                     }
                     .onChange(of: vm.isBatteryPopoverActive) {
-                        if !vm.isBatteryPopoverActive && !isHovering && vm.notchState == .open && !SharingStateManager.shared.preventNotchClose {
+                        if !vm.isBatteryPopoverActive && !isHovering && vm.notchState == .open && !SharingStateManager.shared.preventNotchClose && !claudeVM.isPinned {
                             hoverTask?.cancel()
                             hoverTask = Task {
                                 try? await Task.sleep(for: .milliseconds(100))
                                 guard !Task.isCancelled else { return }
                                 await MainActor.run {
-                                    if !self.vm.isBatteryPopoverActive && !self.isHovering && self.vm.notchState == .open && !SharingStateManager.shared.preventNotchClose {
+                                    if !self.vm.isBatteryPopoverActive && !self.isHovering && self.vm.notchState == .open && !SharingStateManager.shared.preventNotchClose && !self.claudeVM.isPinned {
                                         self.vm.close()
                                     }
                                 }
@@ -204,6 +307,9 @@ struct ContentView: View {
                     Rectangle()
                         .fill(Color.black.opacity(0.01))
                         .frame(width: computedChinWidth, height: vm.chinHeight)
+                        .animation(contentSwapAnimation, value: musicManager.isPlaying || !musicManager.isPlayerIdle)
+                        .animation(contentSwapAnimation, value: musicPeekActive)
+                        .animation(permissionBannerAnimation, value: hasPendingPermissions)
                 }
             }
         }
@@ -219,6 +325,79 @@ struct ContentView: View {
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onAppear {
+            claudeVM.boringVM = vm
+            vm.claudeVM = claudeVM
+            showsClaudeClosedView = !claudeSessionMonitor.instances.isEmpty
+            displayedPermissionSession = claudeSessionMonitor.instances.first { $0.phase.isWaitingForApproval }
+            hasPendingPermissions = displayedPermissionSession != nil
+        }
+        .onChange(of: claudeSessionMonitor.instances) { _, instances in
+            updateClaudeClosedVisibility(with: instances)
+            updatePermissionBanner(with: instances)
+        }
+        .onChange(of: vm.notchState) { _, newState in
+            // Sync Claude tab state with notch open/close
+            if coordinator.currentView == .claudeCode {
+                if newState == .open {
+                    claudeVM.notchOpen(reason: .click)
+                } else {
+                    claudeVM.notchClose()
+                }
+            }
+            // Cancel music peek when notch opens
+            if newState == .open && musicPeekActive {
+                musicPeekTask?.cancel()
+                musicPeekActive = false
+            }
+        }
+        .onChange(of: musicManager.songTitle) { oldTitle, newTitle in
+            // Briefly show music when a new song starts while Claude is primary
+            guard vm.notchState == .closed,
+                  showsClaudeClosedView,
+                  claudeHasVisibleActivity,
+                  musicManager.isPlaying,
+                  !newTitle.isEmpty,
+                  !oldTitle.isEmpty,
+                  oldTitle != newTitle
+            else { return }
+
+            musicPeekTask?.cancel()
+            musicPeekActive = true
+            musicPeekTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { return }
+                musicPeekActive = false
+            }
+        }
+        .onChange(of: musicManager.isPlaying) { oldValue, newValue in
+            if newValue && !oldValue && vm.notchState == .closed && showsClaudeClosedView && claudeHasVisibleActivity {
+                // Music started -- peek to show album art briefly
+                musicPeekTask?.cancel()
+                musicPeekActive = true
+                musicPeekTask = Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(4))
+                    guard !Task.isCancelled else { return }
+                    musicPeekActive = false
+                }
+            } else if !newValue && musicPeekActive {
+                // Music stopped -- cancel peek immediately
+                musicPeekTask?.cancel()
+                musicPeekActive = false
+            }
+        }
+        .onChange(of: coordinator.currentView) { oldView, newView in
+            // Reset notch size when switching away from Claude tab
+            if vm.notchState == .open && oldView == .claudeCode && newView != .claudeCode {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+                    vm.notchSize = openNotchSize
+                }
+            }
+            // Sync size when switching TO Claude tab
+            if vm.notchState == .open && newView == .claudeCode {
+                claudeVM.notchOpen(reason: .click)
+            }
+        }
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
             anyDropDebounceTask?.cancel()
 
@@ -240,7 +419,7 @@ struct ContentView: View {
                 }
 
                 vm.dropEvent = false
-                if !SharingStateManager.shared.preventNotchClose {
+                if !SharingStateManager.shared.preventNotchClose && !claudeVM.isPinned {
                     vm.close()
                 }
             }
@@ -250,7 +429,7 @@ struct ContentView: View {
     @ViewBuilder
     func NotchLayout() -> some View {
         VStack(alignment: .leading) {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 0) {
                 if coordinator.helloAnimationRunning {
                     Spacer()
                     HelloAnimation(onFinish: {
@@ -289,17 +468,28 @@ struct ContentView: View {
                             .frame(width: 76, alignment: .trailing)
                         }
                         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+                    } else if coordinator.expandingView.type == .usageThreshold && coordinator.expandingView.show
+                        && vm.notchState == .closed && Defaults[.showUsageThresholdNotifications]
+                    {
+                        UsageThresholdNotificationView(
+                            utilization: coordinator.expandingView.value,
+                            closedNotchWidth: vm.closedNotchSize.width,
+                            effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
+                        )
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
+                      } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && showsClaudeClosedView && claudeHasVisibleActivity && !vm.hideOnClosed {
+                            ClaudeClosedView(
+                                sessionMonitor: claudeSessionMonitor,
+                                closedNotchSize: vm.closedNotchSize,
+                                effectiveClosedNotchHeight: vm.effectiveClosedNotchHeight
+                            )
+                            .transition(claudeTransition)
                       } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
                           MusicLiveActivity()
                               .frame(alignment: .center)
-                      } else if !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && !claudeCodeManager.availableSessions.isEmpty && !vm.hideOnClosed {
-                          // Claude Code compact view - show when any Claude Code sessions exist (like music shows even when paused)
-                          ClaudeCodeCompactView()
-                              .frame(height: vm.effectiveClosedNotchHeight)
-                              .transition(.opacity.animation(.easeInOut(duration: 0.3)))
+                              .transition(musicTransition)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {
@@ -345,9 +535,34 @@ struct ContentView: View {
                               }
                           }
                       }
+
+                      // Permission drop-down banner -- same width as the notch
+                      // Skip for AskUserQuestion (uses expanded view instead)
+                      if vm.notchState == .closed,
+                         let permissionSession = displayedPermissionSession,
+                         permissionSession.pendingToolName != "AskUserQuestion"
+                      {
+                          PermissionBannerView(
+                              sessionMonitor: claudeSessionMonitor,
+                              session: permissionSession,
+                              onFocus: { session in
+                                  guard session.isInTmux, let pid = session.pid else { return }
+                                  Task {
+                                      _ = await YabaiController.shared.focusWindow(forClaudePid: pid)
+                                  }
+                              }
+                          )
+                          .frame(width: computedChinWidth)
+                          .frame(height: hasPendingPermissions ? nil : 0)
+                          .clipped()
+                          .padding(.top, hasPendingPermissions ? 4 : 0)
+                          .opacity(hasPendingPermissions ? 1.0 : 0.0)
+                          .scaleEffect(hasPendingPermissions ? 1.0 : 0.8, anchor: .top)
+                          .allowsHitTesting(hasPendingPermissions)
+                      }
                   }
               }
-              .conditionalModifier((coordinator.sneakPeek.show && (coordinator.sneakPeek.type == .music) && vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard) || (coordinator.sneakPeek.show && (coordinator.sneakPeek.type != .music) && (vm.notchState == .closed))) { view in
+              .conditionalModifier((coordinator.sneakPeek.show && (coordinator.sneakPeek.type == .music) && vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard) || (coordinator.sneakPeek.show && (coordinator.sneakPeek.type != .music) && (vm.notchState == .closed)) || (vm.notchState == .closed && displayedPermissionSession != nil)) { view in
                   view
                       .fixedSize()
               }
@@ -356,11 +571,35 @@ struct ContentView: View {
                 VStack {
                     switch coordinator.currentView {
                     case .home:
-                        NotchHomeView(albumArtNamespace: albumArtNamespace)
+                        if let askSession = displayedPermissionSession,
+                           askSession.pendingToolName == "AskUserQuestion",
+                           hasPendingPermissions
+                        {
+                            AskUserQuestionView(
+                                sessionMonitor: claudeSessionMonitor,
+                                claudeVM: claudeVM,
+                                session: askSession,
+                                onFocus: { session in
+                                    guard session.isInTmux, let pid = session.pid else { return }
+                                    Task {
+                                        _ = await YabaiController.shared.focusWindow(forClaudePid: pid)
+                                    }
+                                },
+                                onDismiss: {
+                                    claudeVM.isPinned = false
+                                    vm.close()
+                                }
+                            )
+                        } else {
+                            NotchHomeView(albumArtNamespace: albumArtNamespace)
+                        }
                     case .shelf:
                         ShelfView()
                     case .claudeCode:
-                        ClaudeCodeStatsView()
+                        ClaudeCodeTabView(
+                            claudeVM: claudeVM,
+                            sessionMonitor: claudeSessionMonitor
+                        )
                     }
                 }
                 .transition(
@@ -537,6 +776,7 @@ struct ContentView: View {
             
             guard vm.notchState == .closed,
                   !coordinator.sneakPeek.show,
+                  !hasPendingPermissions,
                   Defaults[.openNotchOnHover] else { return }
             
             hoverTask = Task {
@@ -561,7 +801,7 @@ struct ContentView: View {
                         self.isHovering = false
                     }
                     
-                    if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose {
+                    if self.vm.notchState == .open && !self.vm.isBatteryPopoverActive && !SharingStateManager.shared.preventNotchClose && !self.claudeVM.isPinned {
                         self.vm.close()
                     }
                 }
@@ -611,13 +851,70 @@ struct ContentView: View {
             withAnimation(animationSpring) {
                 isHovering = false
             }
-            if !SharingStateManager.shared.preventNotchClose { 
+            if !SharingStateManager.shared.preventNotchClose && !claudeVM.isPinned {
                 gestureProgress = .zero
                 vm.close()
             }
 
             if Defaults[.enableHaptics] {
                 haptics.toggle()
+              }
+          }
+      }
+
+    private func updateClaudeClosedVisibility(with instances: [SessionState]) {
+        claudeClosedDismissTask?.cancel()
+
+        if instances.isEmpty {
+            guard showsClaudeClosedView else { return }
+            // Keep showing for 5 seconds after all sessions end
+            claudeClosedDismissTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { return }
+                guard claudeSessionMonitor.instances.isEmpty else { return }
+                withAnimation(.smooth) {
+                    showsClaudeClosedView = false
+                }
+            }
+        } else {
+            withAnimation(.smooth) {
+                showsClaudeClosedView = true
+            }
+        }
+    }
+
+    private func updatePermissionBanner(with instances: [SessionState]) {
+        let approvalSession = instances.first { $0.phase.isWaitingForApproval }
+        permissionDismissTask?.cancel()
+
+        if let approvalSession {
+            displayedPermissionSession = approvalSession
+            hasPendingPermissions = true
+
+            // AskUserQuestion: auto-open and auto-pin notch
+            if approvalSession.pendingToolName == "AskUserQuestion" && vm.notchState == .closed {
+                coordinator.currentView = .home
+                claudeVM.isPinned = true
+                doOpen()
+            }
+            return
+        }
+
+        // Auto-unpin if AskUserQuestion was pinned
+        if displayedPermissionSession?.pendingToolName == "AskUserQuestion" {
+            claudeVM.isPinned = false
+        }
+
+        withAnimation(permissionDismissAnimation) {
+            hasPendingPermissions = false
+        }
+
+        permissionDismissTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            guard !claudeSessionMonitor.instances.contains(where: { $0.phase.isWaitingForApproval }) else { return }
+            withAnimation(permissionDismissAnimation) {
+                displayedPermissionSession = nil
             }
         }
     }

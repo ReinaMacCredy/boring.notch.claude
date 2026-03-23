@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permission Banner Animation Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 0;
+  }
+
+  .desktop {
+    width: 800px;
+    height: 500px;
+    background: linear-gradient(135deg, #2d1b69, #11998e, #38ef7d);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    margin-top: 40px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .notch-area {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Main notch */
+  .notch {
+    background: #000;
+    height: 34px;
+    width: 250px;
+    border-radius: 0 0 12px 12px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    justify-content: space-between;
+    position: relative;
+    z-index: 2;
+  }
+  .notch::before, .notch::after {
+    content: ''; position: absolute; top: -10px; width: 12px; height: 12px;
+    background: transparent;
+  }
+  .notch::before { left: -12px; border-top-right-radius: 12px; box-shadow: 4px -4px 0 0 #000; }
+  .notch::after { right: -12px; border-top-left-radius: 12px; box-shadow: -4px -4px 0 0 #000; }
+
+  /* Claude content in notch */
+  .crab { font-size: 14px; }
+  .dots { display: flex; gap: 4px; margin-left: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .notch-gap { flex: 1; }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: #fbbf24;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Permission banner */
+  .permission-banner {
+    background: #000;
+    width: 250px;
+    border-radius: 0 0 12px 12px;
+    padding: 0 14px;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+    margin-top: -12px;
+    padding-top: 16px;
+
+    /* Animation properties */
+    max-height: 0;
+    opacity: 0;
+    transform: scaleY(0.8);
+    transform-origin: top center;
+    transition:
+      max-height 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      opacity 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .permission-banner.show {
+    max-height: 60px;
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  .permission-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 10px;
+  }
+
+  .shield {
+    font-size: 11px;
+    color: #fbbf24;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  .tool-name {
+    font-size: 11px;
+    font-family: 'SF Mono', Menlo, monospace;
+    color: rgba(255,255,255,0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .btn-focus {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 12px;
+    padding: 5px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-deny {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 12px;
+    padding: 5px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-allow {
+    font-size: 11px;
+    font-weight: 600;
+    color: #000;
+    background: rgba(255,255,255,0.85);
+    border: none;
+    border-radius: 12px;
+    padding: 5px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-deny:hover, .btn-focus:hover { background: rgba(255,255,255,0.15); }
+  .btn-allow:hover { background: rgba(255,255,255,1); }
+
+  /* Controls */
+  .controls {
+    margin-top: 30px;
+    display: flex;
+    gap: 12px;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .btn-row { display: flex; gap: 10px; }
+
+  .ctrl-btn {
+    padding: 8px 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: background 0.2s;
+  }
+  .ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+  .ctrl-btn.active { border-color: #fbbf24; background: rgba(251,191,36,0.1); }
+
+  .label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 4px;
+  }
+
+  .tool-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .tool-btn {
+    padding: 4px 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.6);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: 'SF Mono', Menlo, monospace;
+    transition: background 0.2s;
+  }
+  .tool-btn:hover { background: rgba(255,255,255,0.1); }
+
+  .status {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    min-height: 20px;
+    text-align: center;
+  }
+
+  .status.approved { color: #4ade80; }
+  .status.denied { color: #f87171; }
+</style>
+</head>
+<body>
+
+<div class="desktop">
+  <div class="notch-area">
+    <div class="notch">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="crab">&#x1F980;</div>
+        <div class="dots">
+          <div class="dot" style="background:#fbbf24"></div>
+          <div class="dot" style="background:#4ade80"></div>
+        </div>
+      </div>
+      <div class="notch-gap"></div>
+      <div class="spinner"></div>
+    </div>
+
+    <div class="permission-banner" id="banner">
+      <div class="permission-content">
+        <div class="shield">&#x26A0;</div>
+        <div class="tool-name" id="toolName">Bash: git status</div>
+        <button class="btn-focus" onclick="focusTerminal()">&#x2197;</button>
+        <button class="btn-deny" onclick="deny()">Deny</button>
+        <button class="btn-allow" onclick="allow()">Allow</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="status" id="status">Click a tool below to trigger permission request</div>
+
+  <div class="btn-row">
+    <button class="ctrl-btn" onclick="toggleBanner()">Toggle Banner</button>
+    <button class="ctrl-btn" onclick="autoDemo()">Auto Demo</button>
+  </div>
+
+  <div class="label">Simulate different tool requests:</div>
+  <div class="tool-list">
+    <button class="tool-btn" onclick="requestPermission('Bash', 'git status')">Bash: git status</button>
+    <button class="tool-btn" onclick="requestPermission('Write', 'src/index.ts')">Write: src/index.ts</button>
+    <button class="tool-btn" onclick="requestPermission('Edit', 'package.json')">Edit: package.json</button>
+    <button class="tool-btn" onclick="requestPermission('Bash', 'npm install express ...')">Bash: npm install</button>
+    <button class="tool-btn" onclick="requestPermission('Read', '/etc/passwd')">Read: /etc/passwd</button>
+  </div>
+</div>
+
+<script>
+const banner = document.getElementById('banner');
+const toolName = document.getElementById('toolName');
+const status = document.getElementById('status');
+let isShowing = false;
+let autoInterval = null;
+
+function requestPermission(tool, input) {
+  toolName.textContent = tool + ': ' + input;
+  banner.classList.add('show');
+  isShowing = true;
+  status.textContent = 'Waiting for approval...';
+  status.className = 'status';
+}
+
+function allow() {
+  banner.classList.remove('show');
+  isShowing = false;
+  status.textContent = 'Approved';
+  status.className = 'status approved';
+  setTimeout(() => {
+    if (!isShowing) {
+      status.textContent = 'Click a tool below to trigger permission request';
+      status.className = 'status';
+    }
+  }, 2000);
+}
+
+function deny() {
+  banner.classList.remove('show');
+  isShowing = false;
+  status.textContent = 'Denied';
+  status.className = 'status denied';
+  setTimeout(() => {
+    if (!isShowing) {
+      status.textContent = 'Click a tool below to trigger permission request';
+      status.className = 'status';
+    }
+  }, 2000);
+}
+
+function focusTerminal() {
+  status.textContent = 'Focused terminal window';
+  status.className = 'status';
+}
+
+function toggleBanner() {
+  if (isShowing) {
+    banner.classList.remove('show');
+    isShowing = false;
+  } else {
+    toolName.textContent = 'Bash: git status';
+    banner.classList.add('show');
+    isShowing = true;
+  }
+}
+
+function autoDemo() {
+  const tools = [
+    ['Bash', 'git status'],
+    ['Write', 'src/components/App.tsx'],
+    ['Edit', 'package.json'],
+    ['Bash', 'npm run build'],
+  ];
+  let i = 0;
+
+  function next() {
+    if (i >= tools.length) return;
+    requestPermission(tools[i][0], tools[i][1]);
+    setTimeout(() => {
+      allow();
+      i++;
+      setTimeout(next, 1000);
+    }, 1500);
+  }
+
+  next();
+}
+</script>
+
+</body>
+</html>

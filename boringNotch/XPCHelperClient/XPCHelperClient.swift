@@ -2,6 +2,23 @@ import Foundation
 import Cocoa
 import AsyncXPCConnection
 
+struct CCUsageCommandResult: Sendable {
+    let stdout: Data?
+    let stderr: String
+    let exitCode: Int32
+    let resolvedExecutablePath: String?
+
+    var isSuccess: Bool {
+        exitCode == 0
+    }
+
+    var stderrSnippet: String {
+        let trimmed = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "none" }
+        return String(trimmed.prefix(240))
+    }
+}
+
 final class XPCHelperClient: NSObject {
     nonisolated static let shared = XPCHelperClient()
     
@@ -241,10 +258,54 @@ final class XPCHelperClient: NSObject {
             return false
         }
     }
+    
+    nonisolated func adjustScreenBrightness(by value: Float) async -> Bool {
+        do {
+            let service = await MainActor.run {
+                ensureRemoteService()
+            }
+            return try await service.withContinuation { service, continuation in
+                service.adjustScreenBrightness(by: value) { success in
+                    continuation.resume(returning: success)
+                }
+            }
+        } catch {
+            return false
+        }
+    }
+
+    // MARK: - ccusage Execution
+
+    nonisolated func fetchCCUsageDailyJSON(since sinceDate: String) async -> CCUsageCommandResult {
+        do {
+            let service = await MainActor.run {
+                ensureRemoteService()
+            }
+            let result: (NSData?, NSData?, NSNumber, NSString?) = try await service.withContinuation { service, continuation in
+                service.fetchCCUsageDailyJSON(since: sinceDate) { stdout, stderr, exitCode, executablePath in
+                    continuation.resume(returning: (stdout, stderr, exitCode, executablePath))
+                }
+            }
+
+            let stderr = String(data: result.1 as Data? ?? Data(), encoding: .utf8) ?? ""
+            return CCUsageCommandResult(
+                stdout: result.0 as Data?,
+                stderr: stderr,
+                exitCode: result.2.int32Value,
+                resolvedExecutablePath: result.3 as String?
+            )
+        } catch {
+            return CCUsageCommandResult(
+                stdout: nil,
+                stderr: "XPC request failed: \(error.localizedDescription)",
+                exitCode: -1,
+                resolvedExecutablePath: nil
+            )
+        }
+    }
 }
 
 extension Notification.Name {
     static let accessibilityAuthorizationChanged = Notification.Name("accessibilityAuthorizationChanged")
 }
-
 

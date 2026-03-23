@@ -20,6 +20,9 @@ import Foundation
     func isScreenBrightnessAvailable(with reply: @escaping (Bool) -> Void)
     func currentScreenBrightness(with reply: @escaping (NSNumber?) -> Void)
     func setScreenBrightness(_ value: Float, with reply: @escaping (Bool) -> Void)
+    func adjustScreenBrightness(by value: Float, with reply: @escaping (Bool) -> Void)
+    // Dedicated ccusage execution (runs outside sandbox)
+    func fetchCCUsageDailyJSON(since sinceDate: String, with reply: @escaping (NSData?, NSData?, NSNumber, NSString?) -> Void)
 }
 
 /*

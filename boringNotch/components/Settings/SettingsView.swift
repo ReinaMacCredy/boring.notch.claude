@@ -1024,8 +1024,13 @@ struct Shelf: View {
 }
 
 struct ClaudeCodeSettings: View {
+    @StateObject private var sessionMonitor = ClaudeSessionMonitor()
     @ObservedObject var claudeCodeManager = ClaudeCodeManager.shared
     @Default(.enableClaudeCode) var enableClaudeCode
+    @Default(.notchTransitionStyle) var notchTransitionStyle
+    @Default(.showUsageThresholdNotifications) var showUsageThresholdNotifications
+    @Default(.usageThresholdStep) var usageThresholdStep
+    @Default(.claudeTabHeight) var claudeTabHeight
 
     var body: some View {
         Form {
@@ -1048,9 +1053,9 @@ struct ClaudeCodeSettings: View {
 
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Show session dots in closed notch")
+                        Text("Show activity in closed notch")
                             .font(.headline)
-                        Text("Display session status dots below the notch when closed.")
+                        Text("Display Claude Code activity indicator when the notch is closed.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -1062,34 +1067,118 @@ struct ClaudeCodeSettings: View {
                         .controlSize(.large)
                         .disabled(!enableClaudeCode)
                 }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Hooks")
+                            .font(.headline)
+                        Text("Install Claude Code hooks for real-time session monitoring.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 40)
+                    Button(HookInstaller.isInstalled() ? "Uninstall" : "Install") {
+                        if HookInstaller.isInstalled() {
+                            HookInstaller.uninstall()
+                        } else {
+                            HookInstaller.installIfNeeded()
+                        }
+                    }
+                    .disabled(!enableClaudeCode)
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Transition style")
+                            .font(.headline)
+                        Text("Animation when switching between music and Claude in the closed notch.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 40)
+                    Picker("", selection: $notchTransitionStyle) {
+                        ForEach(NotchTransitionStyle.allCases) { style in
+                            Text(style.rawValue).tag(style)
+                        }
+                    }
+                    .labelsHidden()
+                    .disabled(!enableClaudeCode)
+                }
+
+                Slider(value: $claudeTabHeight, in: 190...400, step: 10) {
+                    HStack {
+                        Text("Claude tab height")
+                        Spacer()
+                        Text("\(Int(claudeTabHeight))px")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(!enableClaudeCode)
             } header: {
                 Text("General")
-            } footer: {
-                Text("Session dots show the status of active Claude Code sessions. Tap a dot to focus the corresponding IDE.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Usage threshold notifications")
+                            .font(.headline)
+                        Text("Show a notification when 5-hour session usage crosses a threshold.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 40)
+                    Defaults.Toggle("", key: .showUsageThresholdNotifications)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.large)
+                        .disabled(!enableClaudeCode)
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Notification interval")
+                            .font(.headline)
+                        Text("Notify every N% of usage.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 40)
+                    Picker("", selection: $usageThresholdStep) {
+                        Text("Every 5%").tag(5.0)
+                        Text("Every 10%").tag(10.0)
+                        Text("Every 20%").tag(20.0)
+                        Text("Every 25%").tag(25.0)
+                        Text("Every 50%").tag(50.0)
+                    }
+                    .labelsHidden()
+                    .disabled(!enableClaudeCode || !showUsageThresholdNotifications)
+                }
+            } header: {
+                Text("Usage Notifications")
             }
 
             Section {
                 HStack {
                     Text("Active sessions")
                     Spacer()
-                    Text("\(claudeCodeManager.availableSessions.count)")
+                    Text("\(sessionMonitor.instances.count)")
                         .foregroundStyle(.secondary)
                 }
 
-                if !claudeCodeManager.availableSessions.isEmpty {
-                    ForEach(claudeCodeManager.availableSessions) { session in
-                        HStack {
-                            Circle()
-                                .fill(sessionColor(for: session))
-                                .frame(width: 8, height: 8)
-                            Text(session.displayName)
-                            Spacer()
-                            Text(session.ideName)
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
+                ForEach(sessionMonitor.instances) { instance in
+                    HStack {
+                        Circle()
+                            .fill(phaseColor(instance.phase))
+                            .frame(width: 8, height: 8)
+                        Text(instance.displayTitle)
+                        Spacer()
+                        Text(phaseLabel(instance.phase))
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
                     }
                 }
             } header: {
@@ -1098,18 +1187,26 @@ struct ClaudeCodeSettings: View {
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Claude Code")
+        .onAppear {
+            sessionMonitor.startMonitoring()
+        }
     }
 
-    private func sessionColor(for session: ClaudeSession) -> Color {
-        guard let state = claudeCodeManager.sessionStates[session.id] else {
-            return .gray
-        }
-        if state.needsPermission {
-            return .orange
-        } else if state.isActive {
-            return .green
-        }
+    private func phaseColor(_ phase: SessionPhase) -> Color {
+        if phase.isWaitingForApproval { return .orange }
+        if phase.isActive { return .green }
         return .gray
+    }
+
+    private func phaseLabel(_ phase: SessionPhase) -> String {
+        switch phase {
+        case .idle: return "Idle"
+        case .processing: return "Processing"
+        case .waitingForInput: return "Ready"
+        case .waitingForApproval: return "Needs approval"
+        case .compacting: return "Compacting"
+        case .ended: return "Ended"
+        }
     }
 }
 

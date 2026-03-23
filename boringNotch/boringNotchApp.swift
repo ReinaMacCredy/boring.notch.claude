@@ -24,8 +24,13 @@ struct DynamicNotchApp: App {
         updaterController = SPUStandardUpdaterController(
             startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
+        print("Hello from boring.notch.claude")
+
         // Initialize the settings window controller with the updater controller
         SettingsWindowController.shared.setUpdaterController(updaterController)
+
+        // Eagerly init UsageService so token data is ready when notch opens
+        _ = UsageService.shared
     }
 
     var body: some Scene {
@@ -278,7 +283,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(screenConfigurationDidChange),
@@ -419,6 +423,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         setupDragDetectors()
+
+        // Claude Code: start socket server at launch for session detection
+        HookSocketServer.shared.start(
+            onEvent: { event in
+                Task {
+                    await SessionStore.shared.process(.hookReceived(event))
+                }
+                if event.event == "Stop" {
+                    HookSocketServer.shared.cancelPendingPermissions(sessionId: event.sessionId)
+                }
+                if event.event == "PostToolUse", let toolUseId = event.toolUseId {
+                    HookSocketServer.shared.cancelPendingPermission(toolUseId: toolUseId)
+                }
+            },
+            onPermissionFailure: { sessionId, toolUseId in
+                Task {
+                    await SessionStore.shared.process(
+                        .permissionSocketFailed(sessionId: sessionId, toolUseId: toolUseId)
+                    )
+                }
+            }
+        )
 
         if coordinator.firstLaunch {
             DispatchQueue.main.async {

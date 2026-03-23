@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music-to-Claude Transition Options</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: white;
+    padding: 30px;
+  }
+  h1 { font-size: 18px; margin-bottom: 8px; font-weight: 600; }
+  .subtitle { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 30px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 900px;
+  }
+
+  .option {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .option:hover { border-color: rgba(255,255,255,0.3); }
+  .option.highlight { border-color: #4ade80; background: rgba(74,222,128,0.05); }
+
+  .option-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 4px;
+  }
+  .option-title { font-size: 14px; font-weight: 600; }
+  .option-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);
+  }
+  .option-tag.current { background: rgba(239,68,68,0.2); color: #f87171; }
+  .option-tag.recommended { background: rgba(74,222,128,0.2); color: #4ade80; }
+
+  .option-desc { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 12px; line-height: 1.4; }
+
+  .notch-wrap {
+    display: flex; justify-content: center;
+    margin-bottom: 10px;
+  }
+  .notch {
+    background: #000;
+    height: 32px;
+    border-radius: 0 0 10px 10px;
+    position: relative;
+    overflow: hidden;
+    width: 240px;
+  }
+  .notch::before, .notch::after {
+    content: ''; position: absolute; top: -8px; width: 10px; height: 10px;
+    background: transparent;
+  }
+  .notch::before { left: -10px; border-top-right-radius: 10px; box-shadow: 3px -3px 0 0 #000; }
+  .notch::after { right: -10px; border-top-left-radius: 10px; box-shadow: -3px -3px 0 0 #000; }
+
+  .layer {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; padding: 0 8px;
+    justify-content: space-between;
+  }
+
+  .album-art {
+    width: 20px; height: 20px; border-radius: 4px;
+    background: linear-gradient(135deg, #e8a87c, #d4816b); flex-shrink: 0;
+  }
+  .notch-gap { flex: 1; min-width: 100px; }
+  .visualizer { display: flex; gap: 2px; align-items: flex-end; height: 14px; flex-shrink: 0; }
+  .bar { width: 2.5px; background: #888; border-radius: 1px; animation: bounce 0.6s ease-in-out infinite alternate; }
+  .bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+  .bar:nth-child(2) { height: 10px; animation-delay: 0.1s; }
+  .bar:nth-child(3) { height: 8px; animation-delay: 0.2s; }
+  .bar:nth-child(4) { height: 12px; animation-delay: 0.05s; }
+  .bar:nth-child(5) { height: 5px; animation-delay: 0.15s; }
+  @keyframes bounce { 0% { transform: scaleY(0.4); } 100% { transform: scaleY(1); } }
+
+  .crab { font-size: 14px; flex-shrink: 0; }
+  .dots { display: flex; gap: 4px; margin-left: 6px; flex-shrink: 0; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; }
+  .dot.amber { background: #fbbf24; }
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: #4ade80; border-radius: 50%;
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .note {
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    text-align: center;
+    margin-top: 6px;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+
+  .issue-label {
+    font-size: 11px; color: #f87171;
+    text-align: center; margin-top: 4px;
+  }
+
+  .fix-label {
+    font-size: 11px; color: #4ade80;
+    text-align: center; margin-top: 4px;
+  }
+
+  /* === TRANSITION STYLES === */
+  .opt-a .music-layer, .opt-a .claude-layer {
+    transition: opacity 0.4s cubic-bezier(.25,.46,.45,.94),
+                transform 0.4s cubic-bezier(.25,.46,.45,.94);
+  }
+  .opt-a .music-layer.out { opacity: 0; transform: scale(0.96); }
+  .opt-a .claude-layer.out { opacity: 0; transform: scale(0.96); }
+
+  .opt-b .music-layer, .opt-b .claude-layer {
+    transition: opacity 0.5s cubic-bezier(.25,.46,.45,.94);
+  }
+  .opt-b .music-layer.out { opacity: 0; }
+  .opt-b .claude-layer.out { opacity: 0; }
+
+  .opt-c .music-layer, .opt-c .claude-layer {
+    transition: opacity 0.35s ease, transform 0.4s cubic-bezier(.25,.46,.45,.94);
+  }
+  .opt-c .music-layer.out { opacity: 0; transform: translateX(-20px); }
+  .opt-c .claude-layer.out { opacity: 0; transform: translateX(20px); }
+
+  .opt-d .music-layer, .opt-d .claude-layer {
+    transition: opacity 0.2s ease-in-out;
+  }
+  .opt-d .music-layer.out { opacity: 0; }
+  .opt-d .claude-layer.out { opacity: 0; }
+
+  .opt-e .music-layer {
+    transition: opacity 0.25s ease-out;
+  }
+  .opt-e .claude-layer {
+    transition: opacity 0.3s ease-in 0.2s;
+  }
+  .opt-e .music-layer.out { opacity: 0; }
+  .opt-e .claude-layer.out { opacity: 0; transition-delay: 0s; }
+
+  .opt-f .music-layer, .opt-f .claude-layer {
+    transition: opacity 0.45s cubic-bezier(.25,.46,.45,.94);
+  }
+  .opt-f .music-layer.out { opacity: 0; }
+  .opt-f .claude-layer.out { opacity: 0; }
+</style>
+</head>
+<body>
+
+<h1>Music --&gt; Claude transition: pick the best option</h1>
+<p class="subtitle">Click each notch to see the Music-to-Claude direction. Click again to reverse.</p>
+
+<div class="grid">
+  <div class="option" onclick="toggle('a')">
+    <div class="option-header">
+      <span class="option-title">A. Current (cross-fade + scale)</span>
+      <span class="option-tag current">current / broken</span>
+    </div>
+    <p class="option-desc">Both views scale(0.96) + fade. Black background bleeds through during cross-fade.</p>
+    <div class="notch-wrap">
+      <div class="notch opt-a" id="notch-a">
+        <div class="layer music-layer" id="music-a">
+          <div class="album-art"></div><div class="notch-gap"></div>
+          <div class="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        </div>
+        <div class="layer claude-layer out" id="claude-a">
+          <div style="display:flex;align-items:center;gap:6px"><div class="crab">&#x1F980;</div><div class="dots"><div class="dot"></div><div class="dot amber"></div><div class="dot"></div></div></div>
+          <div class="notch-gap"></div><div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+    <p class="issue-label">[!] black gap flashes mid-transition</p>
+    <p class="note">scale(0.96) + opacity</p>
+  </div>
+
+  <div class="option highlight" onclick="toggle('b')">
+    <div class="option-header">
+      <span class="option-title">B. Pure cross-fade (no scale)</span>
+      <span class="option-tag recommended">recommended</span>
+    </div>
+    <p class="option-desc">Only opacity, no scale. Views overlap at 50% opacity -- no black gap.</p>
+    <div class="notch-wrap">
+      <div class="notch opt-b" id="notch-b">
+        <div class="layer music-layer" id="music-b">
+          <div class="album-art"></div><div class="notch-gap"></div>
+          <div class="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        </div>
+        <div class="layer claude-layer out" id="claude-b">
+          <div style="display:flex;align-items:center;gap:6px"><div class="crab">&#x1F980;</div><div class="dots"><div class="dot"></div><div class="dot amber"></div><div class="dot"></div></div></div>
+          <div class="notch-gap"></div><div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+    <p class="fix-label">[ok] clean blend, no black gap</p>
+    <p class="note">opacity-only, 0.5s</p>
+  </div>
+
+  <div class="option" onclick="toggle('c')">
+    <div class="option-header">
+      <span class="option-title">C. Slide</span>
+      <span class="option-tag">alternative</span>
+    </div>
+    <p class="option-desc">Music slides left, Claude slides in from right.</p>
+    <div class="notch-wrap">
+      <div class="notch opt-c" id="notch-c">
+        <div class="layer music-layer" id="music-c">
+          <div class="album-art"></div><div class="notch-gap"></div>
+          <div class="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        </div>
+        <div class="layer claude-layer out" id="claude-c">
+          <div style="display:flex;align-items:center;gap:6px"><div class="crab">&#x1F980;</div><div class="dots"><div class="dot"></div><div class="dot amber"></div><div class="dot"></div></div></div>
+          <div class="notch-gap"></div><div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">translateX + opacity</p>
+  </div>
+
+  <div class="option" onclick="toggle('d')">
+    <div class="option-header">
+      <span class="option-title">D. Quick swap</span>
+      <span class="option-tag">alternative</span>
+    </div>
+    <p class="option-desc">Very fast 0.2s cross-fade. Almost instant.</p>
+    <div class="notch-wrap">
+      <div class="notch opt-d" id="notch-d">
+        <div class="layer music-layer" id="music-d">
+          <div class="album-art"></div><div class="notch-gap"></div>
+          <div class="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        </div>
+        <div class="layer claude-layer out" id="claude-d">
+          <div style="display:flex;align-items:center;gap:6px"><div class="crab">&#x1F980;</div><div class="dots"><div class="dot"></div><div class="dot amber"></div><div class="dot"></div></div></div>
+          <div class="notch-gap"></div><div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">opacity-only, 0.2s</p>
+  </div>
+
+  <div class="option" onclick="toggle('e')">
+    <div class="option-header">
+      <span class="option-title">E. Staggered (exit then enter)</span>
+      <span class="option-tag">alternative</span>
+    </div>
+    <p class="option-desc">Music fades out first, brief pause, then Claude fades in.</p>
+    <div class="notch-wrap">
+      <div class="notch opt-e" id="notch-e">
+        <div class="layer music-layer" id="music-e">
+          <div class="album-art"></div><div class="notch-gap"></div>
+          <div class="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        </div>
+        <div class="layer claude-layer out" id="claude-e">
+          <div style="display:flex;align-items:center;gap:6px"><div class="crab">&#x1F980;</div><div class="dots"><div class="dot"></div><div class="dot amber"></div><div class="dot"></div></div></div>
+          <div class="notch-gap"></div><div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">exit 0.25s, delay 0.2s, enter 0.3s</p>
+  </div>
+
+  <div class="option" onclick="toggle('f')">
+    <div class="option-header">
+      <span class="option-title">F. ZStack (both always mounted)</span>
+      <span class="option-tag">alternative</span>
+    </div>
+    <p class="option-desc">Both views always exist. Only opacity toggles. No insertion/removal = zero layout stutter.</p>
+    <div class="notch-wrap">
+      <div class="notch opt-f" id="notch-f">
+        <div class="layer claude-layer out" id="claude-f" style="z-index:2">
+          <div style="display:flex;align-items:center;gap:6px"><div class="crab">&#x1F980;</div><div class="dots"><div class="dot"></div><div class="dot amber"></div><div class="dot"></div></div></div>
+          <div class="notch-gap"></div><div class="spinner"></div>
+        </div>
+        <div class="layer music-layer" id="music-f" style="z-index:1">
+          <div class="album-art"></div><div class="notch-gap"></div>
+          <div class="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        </div>
+      </div>
+    </div>
+    <p class="fix-label">[ok] zero layout stutter</p>
+    <p class="note">ZStack, opacity-only, 0.45s</p>
+  </div>
+</div>
+
+<script>
+const states = { a:'music', b:'music', c:'music', d:'music', e:'music', f:'music' };
+function toggle(id) {
+  const music = document.getElementById('music-' + id);
+  const claude = document.getElementById('claude-' + id);
+  if (states[id] === 'music') {
+    music.classList.add('out');
+    claude.classList.remove('out');
+    states[id] = 'claude';
+  } else {
+    claude.classList.add('out');
+    music.classList.remove('out');
+    states[id] = 'music';
+  }
+}
+setTimeout(() => {
+  ['a','b','c','d','e','f'].forEach((id, i) => {
+    setTimeout(() => toggle(id), i * 300);
+  });
+  setTimeout(() => {
+    ['a','b','c','d','e','f'].forEach((id, i) => {
+      setTimeout(() => toggle(id), i * 300);
+    });
+  }, 2500);
+}, 800);
+</script>
+</body>
+</html>

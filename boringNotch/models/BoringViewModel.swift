@@ -13,6 +13,9 @@ class BoringViewModel: NSObject, ObservableObject {
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @ObservedObject var detector = FullscreenMediaDetector.shared
 
+    /// Reference to Claude tab VM for dynamic sizing in open()
+    weak var claudeVM: NotchViewModel?
+
     let animationLibrary: BoringAnimations = .init()
     let animation: Animation?
 
@@ -190,7 +193,11 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
-        self.notchSize = openNotchSize
+        if coordinator.currentView == .claudeCode, let claudeVM = claudeVM {
+            self.notchSize = claudeVM.openedSize
+        } else {
+            self.notchSize = openNotchSize
+        }
         self.notchState = .open
 
         // Force music information update when notch is opened

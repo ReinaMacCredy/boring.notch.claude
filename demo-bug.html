@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bug: Music to Claude Black Jump</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: white;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  h1 { font-size: 18px; margin-bottom: 24px; font-weight: 600; }
+
+  /* Desktop */
+  .desktop {
+    width: 700px; height: 300px;
+    background: linear-gradient(135deg, #2d1b69, #11998e, #38ef7d);
+    border-radius: 12px; position: relative; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .notch-area {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  }
+
+  .notch {
+    background: #000; height: 34px;
+    border-radius: 0 0 12px 12px;
+    position: relative; overflow: hidden;
+    width: 260px;
+  }
+  .notch::before, .notch::after {
+    content: ''; position: absolute; top: -10px; width: 12px; height: 12px;
+    background: transparent;
+  }
+  .notch::before { left: -12px; border-top-right-radius: 12px; box-shadow: 4px -4px 0 0 #000; }
+  .notch::after { right: -12px; border-top-left-radius: 12px; box-shadow: -4px -4px 0 0 #000; }
+
+  .layer {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; padding: 0 10px;
+    justify-content: space-between;
+  }
+
+  .album-art {
+    width: 22px; height: 22px; border-radius: 4px;
+    background: linear-gradient(135deg, #e8a87c, #d4816b); flex-shrink: 0;
+  }
+  .notch-gap { flex: 1; }
+  .visualizer { display: flex; gap: 2px; align-items: flex-end; height: 14px; flex-shrink: 0; }
+  .bar { width: 2.5px; background: #888; border-radius: 1px; animation: bounce 0.6s ease-in-out infinite alternate; }
+  .bar:nth-child(1) { height: 6px; }
+  .bar:nth-child(2) { height: 10px; animation-delay: 0.1s; }
+  .bar:nth-child(3) { height: 8px; animation-delay: 0.2s; }
+  .bar:nth-child(4) { height: 12px; animation-delay: 0.05s; }
+  .bar:nth-child(5) { height: 5px; animation-delay: 0.15s; }
+  @keyframes bounce { 0% { transform: scaleY(0.4); } 100% { transform: scaleY(1); } }
+
+  .crab { font-size: 14px; }
+  .dots { display: flex; gap: 4px; margin-left: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: #4ade80; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Controls */
+  .controls {
+    margin-top: 20px; display: flex; gap: 10px; align-items: center;
+  }
+  .btn {
+    padding: 8px 20px; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08); color: white;
+    border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit;
+  }
+  .btn:hover { background: rgba(255,255,255,0.15); }
+
+  /* Freeze frames */
+  .freeze-section {
+    margin-top: 40px; width: 700px;
+  }
+  .freeze-title {
+    font-size: 15px; font-weight: 600; margin-bottom: 16px;
+  }
+  .freeze-row {
+    display: flex; gap: 8px; align-items: flex-start; margin-bottom: 20px;
+  }
+  .freeze-card {
+    flex: 1; text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .freeze-card:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.03); }
+  .freeze-card.selected { border-color: #f87171; background: rgba(239,68,68,0.08); }
+
+  .freeze-notch {
+    background: #000; height: 30px;
+    border-radius: 0 0 8px 8px;
+    position: relative; overflow: hidden;
+    margin: 0 auto 6px;
+  }
+  .freeze-content {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; padding: 0 6px;
+    justify-content: space-between;
+    font-size: 9px;
+  }
+  .freeze-label { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 2px; }
+  .freeze-num { font-size: 10px; color: rgba(255,255,255,0.3); font-family: 'SF Mono', Menlo, monospace; }
+
+  .mini-art { width: 12px; height: 12px; border-radius: 2px; background: linear-gradient(135deg, #e8a87c, #d4816b); }
+  .mini-bars { display: flex; gap: 1px; align-items: flex-end; height: 8px; }
+  .mini-bar { width: 1.5px; background: #888; border-radius: 0.5px; }
+  .mini-crab { font-size: 9px; }
+  .mini-dots { display: flex; gap: 2px; }
+  .mini-dot { width: 4px; height: 4px; border-radius: 50%; }
+  .mini-spinner { width: 8px; height: 8px; border: 1.5px solid rgba(255,255,255,0.2); border-top-color: #4ade80; border-radius: 50%; }
+
+  .pick-msg {
+    font-size: 13px; color: rgba(255,255,255,0.5);
+    text-align: center; margin-top: 10px;
+    padding: 10px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+  }
+  .pick-msg strong { color: #f87171; }
+</style>
+</head>
+<body>
+
+<h1>Which one matches the bug you see? (click to select)</h1>
+
+<!-- Live demo -->
+<div class="desktop" id="desktop">
+  <div class="notch-area">
+    <div class="notch" id="notch">
+      <div class="layer" id="music-layer">
+        <div class="album-art"></div><div class="notch-gap"></div>
+        <div class="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+      <div class="layer" id="claude-layer" style="opacity:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="crab">&#x1F980;</div>
+          <div class="dots"><div class="dot" style="background:#4ade80"></div><div class="dot" style="background:#fbbf24"></div><div class="dot" style="background:#d4816b"></div></div>
+        </div>
+        <div class="notch-gap"></div>
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn" onclick="playBug('A')">Play Bug A</button>
+  <button class="btn" onclick="playBug('B')">Play Bug B</button>
+  <button class="btn" onclick="playBug('C')">Play Bug C</button>
+  <button class="btn" onclick="playBug('D')">Play Bug D</button>
+  <button class="btn" onclick="resetDemo()">Reset</button>
+</div>
+
+<!-- Freeze frame selection -->
+<div class="freeze-section">
+  <div class="freeze-title">Select which bug matches what you see:</div>
+
+  <div class="freeze-row">
+
+    <!-- Bug A: Empty black notch flash -->
+    <div class="freeze-card" id="card-A" onclick="selectBug('A')">
+      <div class="freeze-label"><strong>A.</strong> Black empty flash</div>
+      <div style="display:flex;gap:4px;justify-content:center;margin-bottom:6px">
+        <div>
+          <div class="freeze-notch" style="width:90px">
+            <div class="freeze-content">
+              <div class="mini-art"></div><span style="flex:1"></span>
+              <div class="mini-bars"><div class="mini-bar" style="height:4px"></div><div class="mini-bar" style="height:7px"></div><div class="mini-bar" style="height:5px"></div></div>
+            </div>
+          </div>
+          <div class="freeze-num">music</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:90px;outline:2px solid #f87171">
+            <!-- empty black -->
+          </div>
+          <div class="freeze-num" style="color:#f87171">BLACK!</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:80px">
+            <div class="freeze-content">
+              <div class="mini-crab">&#x1F980;</div><div class="mini-dots"><div class="mini-dot" style="background:#4ade80"></div><div class="mini-dot" style="background:#fbbf24"></div></div>
+              <span style="flex:1"></span><div class="mini-spinner"></div>
+            </div>
+          </div>
+          <div class="freeze-num">claude</div>
+        </div>
+      </div>
+      <div class="freeze-num">Music disappears, black gap, then Claude appears</div>
+    </div>
+
+    <!-- Bug B: Width jump with black edges -->
+    <div class="freeze-card" id="card-B" onclick="selectBug('B')">
+      <div class="freeze-label"><strong>B.</strong> Width shrinks, black edges</div>
+      <div style="display:flex;gap:4px;justify-content:center;margin-bottom:6px">
+        <div>
+          <div class="freeze-notch" style="width:100px">
+            <div class="freeze-content">
+              <div class="mini-art"></div><span style="flex:1"></span>
+              <div class="mini-bars"><div class="mini-bar" style="height:4px"></div><div class="mini-bar" style="height:7px"></div><div class="mini-bar" style="height:5px"></div></div>
+            </div>
+          </div>
+          <div class="freeze-num">wide</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:70px;outline:2px solid #f87171">
+            <div class="freeze-content" style="opacity:0.5">
+              <div class="mini-crab">&#x1F980;</div>
+              <span style="flex:1"></span>
+            </div>
+          </div>
+          <div class="freeze-num" style="color:#f87171">JUMP!</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:80px">
+            <div class="freeze-content">
+              <div class="mini-crab">&#x1F980;</div><div class="mini-dots"><div class="mini-dot" style="background:#4ade80"></div><div class="mini-dot" style="background:#fbbf24"></div></div>
+              <span style="flex:1"></span><div class="mini-spinner"></div>
+            </div>
+          </div>
+          <div class="freeze-num">settled</div>
+        </div>
+      </div>
+      <div class="freeze-num">Notch width suddenly jumps smaller, then Claude fills in</div>
+    </div>
+
+  </div>
+
+  <div class="freeze-row">
+
+    <!-- Bug C: Claude elements expand from nothing -->
+    <div class="freeze-card" id="card-C" onclick="selectBug('C')">
+      <div class="freeze-label"><strong>C.</strong> Claude elements pop in from 0</div>
+      <div style="display:flex;gap:4px;justify-content:center;margin-bottom:6px">
+        <div>
+          <div class="freeze-notch" style="width:90px">
+            <div class="freeze-content">
+              <div class="mini-art"></div><span style="flex:1"></span>
+              <div class="mini-bars"><div class="mini-bar" style="height:4px"></div><div class="mini-bar" style="height:7px"></div><div class="mini-bar" style="height:5px"></div></div>
+            </div>
+          </div>
+          <div class="freeze-num">music</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:85px;outline:2px solid #f87171">
+            <div class="freeze-content">
+              <div class="mini-crab" style="opacity:0.7">&#x1F980;</div>
+              <span style="flex:1"></span>
+            </div>
+          </div>
+          <div class="freeze-num" style="color:#f87171">crab only!</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:85px">
+            <div class="freeze-content">
+              <div class="mini-crab">&#x1F980;</div><div class="mini-dots"><div class="mini-dot" style="background:#4ade80"></div><div class="mini-dot" style="background:#fbbf24"></div></div>
+              <span style="flex:1"></span><div class="mini-spinner"></div>
+            </div>
+          </div>
+          <div class="freeze-num">dots+spinner appear</div>
+        </div>
+      </div>
+      <div class="freeze-num">Crab appears first, then dots and spinner pop in after</div>
+    </div>
+
+    <!-- Bug D: Both visible at once with flicker -->
+    <div class="freeze-card" id="card-D" onclick="selectBug('D')">
+      <div class="freeze-label"><strong>D.</strong> Double content flicker</div>
+      <div style="display:flex;gap:4px;justify-content:center;margin-bottom:6px">
+        <div>
+          <div class="freeze-notch" style="width:90px">
+            <div class="freeze-content">
+              <div class="mini-art"></div><span style="flex:1"></span>
+              <div class="mini-bars"><div class="mini-bar" style="height:4px"></div><div class="mini-bar" style="height:7px"></div><div class="mini-bar" style="height:5px"></div></div>
+            </div>
+          </div>
+          <div class="freeze-num">music</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:100px;outline:2px solid #f87171">
+            <div class="freeze-content" style="opacity:0.5">
+              <div class="mini-art" style="opacity:0.5"></div>
+              <div class="mini-crab" style="margin-left:4px;opacity:0.5">&#x1F980;</div>
+              <span style="flex:1"></span>
+              <div class="mini-spinner" style="opacity:0.5"></div>
+            </div>
+          </div>
+          <div class="freeze-num" style="color:#f87171">OVERLAP!</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);align-self:center">--></div>
+        <div>
+          <div class="freeze-notch" style="width:85px">
+            <div class="freeze-content">
+              <div class="mini-crab">&#x1F980;</div><div class="mini-dots"><div class="mini-dot" style="background:#4ade80"></div><div class="mini-dot" style="background:#fbbf24"></div></div>
+              <span style="flex:1"></span><div class="mini-spinner"></div>
+            </div>
+          </div>
+          <div class="freeze-num">claude</div>
+        </div>
+      </div>
+      <div class="freeze-num">Both music and Claude visible at same time, messy overlap</div>
+    </div>
+
+  </div>
+
+  <div class="pick-msg">
+    <strong>Click the card that matches your bug</strong>, then I'll know exactly what to fix.
+    <br>Or describe what's different if none match.
+  </div>
+</div>
+
+<script>
+function selectBug(id) {
+  document.querySelectorAll('.freeze-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('card-' + id).classList.add('selected');
+}
+
+let playing = false;
+function playBug(type) {
+  if (playing) return;
+  playing = true;
+  const music = document.getElementById('music-layer');
+  const claude = document.getElementById('claude-layer');
+  const notch = document.getElementById('notch');
+
+  // Reset
+  music.style.transition = 'none';
+  claude.style.transition = 'none';
+  notch.style.transition = 'none';
+  music.style.opacity = '1';
+  claude.style.opacity = '0';
+  notch.style.width = '260px';
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+
+      if (type === 'A') {
+        // Bug A: music disappears, black gap, then Claude appears
+        music.style.transition = 'opacity 0.15s ease-out';
+        music.style.opacity = '0';
+        setTimeout(() => {
+          claude.style.transition = 'opacity 0.3s ease-in';
+          claude.style.opacity = '1';
+          notch.style.transition = 'width 0.3s ease';
+          notch.style.width = '230px';
+        }, 200); // gap!
+      }
+
+      if (type === 'B') {
+        // Bug B: width jumps first, then content settles
+        notch.style.width = '200px'; // instant jump
+        music.style.transition = 'opacity 0.2s ease-out';
+        music.style.opacity = '0';
+        setTimeout(() => {
+          claude.style.transition = 'opacity 0.3s ease-in';
+          claude.style.opacity = '1';
+          notch.style.transition = 'width 0.4s ease';
+          notch.style.width = '240px';
+        }, 100);
+      }
+
+      if (type === 'C') {
+        // Bug C: crab appears but dots/spinner lag behind
+        music.style.transition = 'opacity 0.3s ease-out';
+        claude.style.transition = 'opacity 0.3s ease-in';
+        music.style.opacity = '0';
+        claude.style.opacity = '1';
+        notch.style.transition = 'width 0.4s ease';
+        notch.style.width = '230px';
+        // Claude internals expand separately (simulated)
+      }
+
+      if (type === 'D') {
+        // Bug D: both visible simultaneously, overlapping mess
+        music.style.transition = 'opacity 0.5s ease-out';
+        claude.style.transition = 'opacity 0.5s ease-in';
+        music.style.opacity = '0';
+        claude.style.opacity = '1';
+        notch.style.transition = 'width 0.4s ease';
+        notch.style.width = '240px';
+      }
+
+      setTimeout(() => { playing = false; }, 800);
+    });
+  });
+}
+
+function resetDemo() {
+  const music = document.getElementById('music-layer');
+  const claude = document.getElementById('claude-layer');
+  const notch = document.getElementById('notch');
+  music.style.transition = 'none';
+  claude.style.transition = 'none';
+  notch.style.transition = 'none';
+  music.style.opacity = '1';
+  claude.style.opacity = '0';
+  notch.style.width = '260px';
+  playing = false;
+}
+</script>
+
+</body>
+</html>

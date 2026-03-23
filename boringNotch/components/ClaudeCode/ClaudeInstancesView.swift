@@ -5,7 +5,6 @@
 //  Minimal instances list matching Dynamic Island aesthetic
 //
 
-import Combine
 import SwiftUI
 
 struct ClaudeInstancesView: View {
@@ -140,12 +139,7 @@ struct InstanceRow: View {
     @State private var isHovered = false
     @State private var isRenaming = false
     @State private var editingName = ""
-    @State private var spinnerPhase = 0
     @State private var isYabaiAvailable = false
-
-    private let claudeOrange = Color(red: 0.85, green: 0.47, blue: 0.34)
-    private let spinnerSymbols = ["·", "✢", "✳", "∗", "✻", "✽"]
-    private let spinnerTimer = Timer.publish(every: 0.15, on: .main, in: .common).autoconnect()
 
     /// Whether we're showing the approval UI
     private var isWaitingForApproval: Bool {
@@ -155,7 +149,7 @@ struct InstanceRow: View {
     /// Whether the pending tool requires interactive input (not just approve/deny)
     private var isInteractiveTool: Bool {
         guard let toolName = session.pendingToolName else { return false }
-        return toolName == "AskUserQuestion"
+        return toolName == ClaudeToolNames.askUserQuestion
     }
 
     var body: some View {
@@ -344,19 +338,9 @@ struct InstanceRow: View {
     private var stateIndicator: some View {
         switch session.phase {
         case .processing, .compacting:
-            Text(spinnerSymbols[spinnerPhase % spinnerSymbols.count])
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(claudeOrange)
-                .onReceive(spinnerTimer) { _ in
-                    spinnerPhase = (spinnerPhase + 1) % spinnerSymbols.count
-                }
+            ProcessingSpinner()
         case .waitingForApproval:
-            Text(spinnerSymbols[spinnerPhase % spinnerSymbols.count])
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(TerminalColors.amber)
-                .onReceive(spinnerTimer) { _ in
-                    spinnerPhase = (spinnerPhase + 1) % spinnerSymbols.count
-                }
+            ProcessingSpinner(color: TerminalColors.amber)
         case .waitingForInput:
             Circle()
                 .fill(TerminalColors.green)

@@ -29,6 +29,7 @@ struct SessionDotsIndicator: View {
 struct SessionDot: View {
     let session: ClaudeSession
     let state: ClaudeCodeState?
+    var showTooltip: Bool = true
 
     @State private var isBlinking = false
 
@@ -46,7 +47,7 @@ struct SessionDot: View {
     }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 1)
+        let dot = RoundedRectangle(cornerRadius: 1)
             .fill(dotColor)
             .frame(width: 14, height: 3)
             .opacity(shouldBlink ? (isBlinking ? 1.0 : 0.3) : 0.5)
@@ -70,7 +71,12 @@ struct SessionDot: View {
                     }
                 }
             }
-            .help(tooltipText)
+
+        if showTooltip {
+            dot.help(tooltipText)
+        } else {
+            dot
+        }
     }
 
     private var tooltipText: String {
@@ -100,59 +106,16 @@ struct SessionDotsIndicatorCompact: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(manager.availableSessions) { session in
-                SessionDotCompact(
+                SessionDot(
                     session: session,
-                    state: manager.sessionStates[session.id]
+                    state: manager.sessionStates[session.id],
+                    showTooltip: false
                 )
                 .onTapGesture {
                     manager.focusIDE(for: session)
                 }
             }
         }
-    }
-}
-
-struct SessionDotCompact: View {
-    let session: ClaudeSession
-    let state: ClaudeCodeState?
-
-    @State private var isBlinking = false
-
-    private var dotColor: Color {
-        if state?.needsPermission == true {
-            return .orange
-        } else if state?.isActive == true {
-            return .green
-        }
-        return .gray
-    }
-
-    private var shouldBlink: Bool {
-        state?.needsPermission == true || state?.isActive == true
-    }
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 1)
-            .fill(dotColor)
-            .frame(width: 14, height: 3)
-            .opacity(shouldBlink ? (isBlinking ? 1.0 : 0.3) : 0.5)
-            .animation(.easeInOut(duration: 0.6), value: isBlinking)
-            .onAppear {
-                if shouldBlink {
-                    withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                        isBlinking = true
-                    }
-                }
-            }
-            .onChange(of: shouldBlink) { _, newValue in
-                if newValue {
-                    withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                        isBlinking = true
-                    }
-                } else {
-                    isBlinking = false
-                }
-            }
     }
 }
 

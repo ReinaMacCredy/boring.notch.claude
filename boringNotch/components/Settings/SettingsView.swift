@@ -124,7 +124,7 @@ struct SettingsView: View {
         .background(Color(NSColor.windowBackgroundColor))
         .tint(.effectiveAccent)
         .id(accentColorUpdateTrigger)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AccentColorChanged"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .accentColorChanged)) { _ in
             accentColorUpdateTrigger = UUID()
         }
     }
@@ -1610,7 +1610,7 @@ struct Advanced: View {
     private func forceUiUpdate() {
         // Force refresh the UI
         DispatchQueue.main.async {
-            NotificationCenter.default.post(name: Notification.Name("AccentColorChanged"), object: nil)
+            NotificationCenter.default.post(name: .accentColorChanged, object: nil)
         }
     }
     

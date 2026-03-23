@@ -14,12 +14,6 @@
 
 import SwiftUI
 
-private extension Array {
-    subscript(safe index: Index) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}
-
 struct PermissionBannerView: View {
     @ObservedObject var sessionMonitor: ClaudeSessionMonitor
     let session: SessionState?
@@ -46,7 +40,7 @@ struct PermissionBannerView: View {
     }
 
     private var isUserQuestion: Bool {
-        pendingSession?.pendingToolName == "AskUserQuestion"
+        pendingSession?.pendingToolName == ClaudeToolNames.askUserQuestion
     }
 
     private var bannerIcon: String {
@@ -316,7 +310,7 @@ struct PermissionBannerView: View {
             return "Plan ready to execute"
         }
 
-        if toolName == "AskUserQuestion" {
+        if toolName == ClaudeToolNames.askUserQuestion {
             if let permission = session.activePermission,
                let input = permission.toolInput,
                let questions = input["questions"]?.value as? [[String: Any]],

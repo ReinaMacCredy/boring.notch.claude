@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - Session Discovery
 
@@ -85,7 +86,7 @@ struct TokenUsage: Equatable {
 
     /// Calculate estimated cost for this session
     func estimatedCost(model: String) -> Double {
-        let pricing = model.contains("opus") ? Self.opusPricing : Self.sonnetPricing
+        let pricing = model.claudeModelDisplayName == "Opus" ? Self.opusPricing : Self.sonnetPricing
 
         let inputCost = Double(inputTokens) / 1_000_000 * pricing.inputPerMillion
         let outputCost = Double(outputTokens) / 1_000_000 * pricing.outputPerMillion
@@ -140,6 +141,22 @@ struct ClaudeTodoItem: Identifiable, Equatable {
         case pending
         case inProgress = "in_progress"
         case completed
+
+        var icon: String {
+            switch self {
+            case .pending: return "circle"
+            case .inProgress: return "circle.lefthalf.filled"
+            case .completed: return "checkmark.circle.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .pending: return .secondary
+            case .inProgress: return .orange
+            case .completed: return .green
+            }
+        }
     }
 }
 

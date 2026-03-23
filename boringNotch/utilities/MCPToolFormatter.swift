@@ -12,8 +12,8 @@ struct MCPToolFormatter {
     /// Tool aliases for friendlier display names
     private static let toolAliases: [String: String] = [
         "AgentOutputTool": "Await Agent",
-        "AskUserQuestion": "Question",
-        "TodoWrite": "Todo",
+        ClaudeToolNames.askUserQuestion: "Question",
+        ClaudeToolNames.todoWrite: "Todo",
         "TodoRead": "Todo",
         "WebFetch": "Fetch",
         "WebSearch": "Search",

@@ -53,7 +53,6 @@ struct ChatView: View {
     @State private var interactivePromptTransitionTask: Task<Void, Never>?
     @FocusState private var isInputFocused: Bool
 
-    private static let askUserToolName = "AskUserQuestion"
     private static let bottomBarAnimation = Animation.spring(response: 0.35, dampingFraction: 0.85)
 
     init(sessionId: String, initialSession: SessionState, sessionMonitor: ClaudeSessionMonitor, viewModel: NotchViewModel) {
@@ -103,7 +102,7 @@ struct ChatView: View {
 
                 // Approval bar, interactive prompt, or Input bar
                 if let tool = renderedApprovalTool {
-                    if tool == Self.askUserToolName {
+                    if tool == ClaudeToolNames.askUserQuestion {
                         // Interactive tools - show prompt to answer in terminal
                         interactivePromptBar
                     } else {
@@ -503,7 +502,7 @@ struct ChatView: View {
         interactivePromptTransitionTask?.cancel()
         interactivePromptTransitionTask = nil
 
-        if desiredTool == Self.askUserToolName {
+        if desiredTool == ClaudeToolNames.askUserQuestion {
             if renderedApprovalTool != desiredTool {
                 withAnimation(Self.bottomBarAnimation) {
                     renderedApprovalTool = desiredTool
@@ -513,7 +512,7 @@ struct ChatView: View {
             return
         }
 
-        guard renderedApprovalTool == Self.askUserToolName else {
+        guard renderedApprovalTool == ClaudeToolNames.askUserQuestion else {
             if renderedApprovalTool != desiredTool {
                 withAnimation(Self.bottomBarAnimation) {
                     renderedApprovalTool = desiredTool
@@ -543,7 +542,7 @@ struct ChatView: View {
     private func scheduleInteractivePromptVisibility(_ isVisible: Bool) {
         interactivePromptTransitionTask = Task { @MainActor in
             await Task.yield()
-            guard !Task.isCancelled, renderedApprovalTool == Self.askUserToolName else { return }
+            guard !Task.isCancelled, renderedApprovalTool == ClaudeToolNames.askUserQuestion else { return }
             isInteractivePromptVisible = isVisible
             interactivePromptTransitionTask = nil
         }
@@ -706,7 +705,7 @@ struct AssistantMessageView: View {
 
 struct ProcessingIndicatorView: View {
     private let baseTexts = ["Processing", "Working"]
-    private let color = Color(red: 0.85, green: 0.47, blue: 0.34) // Claude orange
+    private let color = TerminalColors.prompt
     private let baseText: String
 
     @State private var dotCount: Int = 1
@@ -1135,7 +1134,7 @@ struct ChatInteractivePromptBar: View {
         HStack(spacing: 12) {
             // Tool info - same style as approval bar
             VStack(alignment: .leading, spacing: 2) {
-                Text(MCPToolFormatter.formatToolName("AskUserQuestion"))
+                Text(MCPToolFormatter.formatToolName(ClaudeToolNames.askUserQuestion))
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(TerminalColors.amber)
                 Text("Claude Code needs your input")
@@ -1288,7 +1287,7 @@ struct NewMessagesIndicator: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(Color(red: 0.85, green: 0.47, blue: 0.34)) // Claude orange
+                    .fill(TerminalColors.prompt)
                     .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
             )
             .scaleEffect(isHovering ? 1.05 : 1.0)

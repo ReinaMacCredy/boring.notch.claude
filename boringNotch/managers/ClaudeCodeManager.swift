@@ -74,15 +74,8 @@ final class ClaudeCodeManager: ObservableObject {
     // MARK: - Private Properties
 
     // Use the real home directory, not the sandboxed container
-    private let claudeDir: URL = {
-        // Get the real home directory by reading from passwd, bypassing sandbox
-        if let pw = getpwuid(getuid()), let home = pw.pointee.pw_dir {
-            let homePath = String(cString: home)
-            return URL(fileURLWithPath: homePath).appendingPathComponent(".claude")
-        }
-        // Fallback to standard (will be sandboxed)
-        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude")
-    }()
+    private let claudeDir: URL = URL(fileURLWithPath: realHomeDirectory())
+        .appendingPathComponent(".claude")
     private var ideDir: URL { claudeDir.appendingPathComponent("ide") }
     private var projectsDir: URL { claudeDir.appendingPathComponent("projects") }
 
@@ -851,7 +844,7 @@ final class ClaudeCodeManager: ObservableObject {
                            let toolName = item["name"] as? String {
 
                             // Parse TodoWrite tool to extract todos
-                            if toolName == "TodoWrite",
+                            if toolName == ClaudeToolNames.todoWrite,
                                let input = item["input"] as? [String: Any],
                                let todos = input["todos"] as? [[String: Any]] {
                                 parseTodos(todos)

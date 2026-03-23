@@ -295,36 +295,21 @@ struct TodoWriteResultContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(Array(result.newTodos.enumerated()), id: \.offset) { _, todo in
+                let status = ClaudeTodoItem.TodoStatus(rawValue: todo.status) ?? .pending
                 HStack(spacing: 6) {
                     // Status icon
-                    Image(systemName: todoIcon(for: todo.status))
+                    Image(systemName: status.icon)
                         .font(.system(size: 10))
-                        .foregroundColor(todoColor(for: todo.status))
+                        .foregroundColor(status.color.opacity(0.7))
                         .frame(width: 12)
 
                     Text(todo.content)
                         .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(todo.status == "completed" ? 0.4 : 0.7))
-                        .strikethrough(todo.status == "completed")
+                        .foregroundColor(.white.opacity(status == .completed ? 0.4 : 0.7))
+                        .strikethrough(status == .completed)
                         .lineLimit(2)
                 }
             }
-        }
-    }
-
-    private func todoIcon(for status: String) -> String {
-        switch status {
-        case "completed": return "checkmark.circle.fill"
-        case "in_progress": return "circle.lefthalf.filled"
-        default: return "circle"
-        }
-    }
-
-    private func todoColor(for status: String) -> Color {
-        switch status {
-        case "completed": return .green.opacity(0.7)
-        case "in_progress": return .orange.opacity(0.7)
-        default: return .white.opacity(0.4)
         }
     }
 }

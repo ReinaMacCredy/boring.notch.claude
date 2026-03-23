@@ -294,7 +294,7 @@ struct ToolStatusDisplay {
                 return ToolStatusDisplay(text: desc, isRunning: true)
             }
             return ToolStatusDisplay(text: "Running agent...", isRunning: true)
-        case "TodoWrite":
+        case ClaudeToolNames.todoWrite:
             return ToolStatusDisplay(text: "Updating todos...", isRunning: true)
         case "EnterPlanMode":
             return ToolStatusDisplay(text: "Entering plan mode...", isRunning: true)

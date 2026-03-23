@@ -540,7 +540,7 @@ struct ContentView: View {
                       // Skip for AskUserQuestion (uses expanded view instead)
                       if vm.notchState == .closed,
                          let permissionSession = displayedPermissionSession,
-                         permissionSession.pendingToolName != "AskUserQuestion"
+                         permissionSession.pendingToolName != ClaudeToolNames.askUserQuestion
                       {
                           PermissionBannerView(
                               sessionMonitor: claudeSessionMonitor,
@@ -572,7 +572,7 @@ struct ContentView: View {
                     switch coordinator.currentView {
                     case .home:
                         if let askSession = displayedPermissionSession,
-                           askSession.pendingToolName == "AskUserQuestion",
+                           askSession.pendingToolName == ClaudeToolNames.askUserQuestion,
                            hasPendingPermissions
                         {
                             AskUserQuestionView(
@@ -892,7 +892,7 @@ struct ContentView: View {
             hasPendingPermissions = true
 
             // AskUserQuestion: auto-open and auto-pin notch
-            if approvalSession.pendingToolName == "AskUserQuestion" && vm.notchState == .closed {
+            if approvalSession.pendingToolName == ClaudeToolNames.askUserQuestion && vm.notchState == .closed {
                 coordinator.currentView = .home
                 claudeVM.isPinned = true
                 doOpen()
@@ -901,7 +901,7 @@ struct ContentView: View {
         }
 
         // Auto-unpin if AskUserQuestion was pinned
-        if displayedPermissionSession?.pendingToolName == "AskUserQuestion" {
+        if displayedPermissionSession?.pendingToolName == ClaudeToolNames.askUserQuestion {
             claudeVM.isPinned = false
         }
 

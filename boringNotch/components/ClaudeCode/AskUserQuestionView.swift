@@ -66,7 +66,7 @@ struct AskUserQuestionView: View {
 
                     PermissionIndicatorIcon(
                         size: 14,
-                        color: Color(red: 0.85, green: 0.47, blue: 0.34)
+                        color: TerminalColors.prompt
                     )
 
                     if let header = header {
@@ -211,11 +211,5 @@ struct AskUserQuestionView: View {
         .padding(.horizontal, 12)
         .padding(.top, 4)
         .padding(.bottom, 12)
-    }
-}
-
-private extension Array {
-    subscript(safe index: Index) -> Element? {
-        indices.contains(index) ? self[index] : nil
     }
 }

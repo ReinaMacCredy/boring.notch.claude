@@ -13,15 +13,7 @@ struct ContextBar: View {
     var height: CGFloat = 8
 
     private var fillColor: Color {
-        if percentage > 90 {
-            return .red
-        } else if percentage > 75 {
-            return .orange
-        } else if percentage > 50 {
-            return .yellow
-        } else {
-            return .green
-        }
+        contextPercentageColor(for: percentage)
     }
 
     var body: some View {
@@ -62,14 +54,14 @@ struct ContextBarWithLabel: View {
                 .frame(maxWidth: .infinity)
 
             HStack {
-                Text(formatTokens(tokensUsed))
+                Text(tokensUsed.formattedTokenCount)
                     .font(.caption2.monospacedDigit())
                     .foregroundColor(.secondary)
                 Text("used")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 Spacer()
-                Text(formatTokens(tokensTotal - tokensUsed))
+                Text((tokensTotal - tokensUsed).formattedTokenCount)
                     .font(.caption2.monospacedDigit())
                     .foregroundColor(.secondary)
                 Text("left")
@@ -79,12 +71,6 @@ struct ContextBarWithLabel: View {
         }
     }
 
-    private func formatTokens(_ count: Int) -> String {
-        if count >= 1000 {
-            return "\(count / 1000)k"
-        }
-        return "\(count)"
-    }
 }
 
 #Preview {

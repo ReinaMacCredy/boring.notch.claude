@@ -603,7 +603,7 @@ actor ConversationParser {
             return parseGrepResult(toolUseResult)
         case "Glob":
             return parseGlobResult(toolUseResult)
-        case "TodoWrite":
+        case ClaudeToolNames.todoWrite:
             return parseTodoWriteResult(toolUseResult)
         case "Task":
             return parseTaskResult(toolUseResult)
@@ -611,7 +611,7 @@ actor ConversationParser {
             return parseWebFetchResult(toolUseResult)
         case "WebSearch":
             return parseWebSearchResult(toolUseResult)
-        case "AskUserQuestion":
+        case ClaudeToolNames.askUserQuestion:
             return parseAskUserQuestionResult(toolUseResult)
         case "BashOutput":
             return parseBashOutputResult(toolUseResult)

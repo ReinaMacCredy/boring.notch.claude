@@ -54,9 +54,9 @@ struct ClaudeCodeStatsView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         ForEach(manager.state.todos.prefix(3)) { todo in
                             HStack(spacing: 4) {
-                                Image(systemName: todoIcon(for: todo.status))
+                                Image(systemName: todo.status.icon)
                                     .font(.system(size: 8))
-                                    .foregroundColor(todoColor(for: todo.status))
+                                    .foregroundColor(todo.status.color)
                                 Text(todo.content)
                                     .font(.caption2)
                                     .foregroundColor(todo.status == .completed ? .secondary.opacity(0.6) : .secondary)
@@ -136,36 +136,7 @@ struct ClaudeCodeStatsView: View {
     }
 
     private var modelDisplayName: String {
-        if manager.state.model.contains("opus") {
-            return "Opus"
-        } else if manager.state.model.contains("sonnet") {
-            return "Sonnet"
-        } else if manager.state.model.contains("haiku") {
-            return "Haiku"
-        }
-        return "Claude"
-    }
-
-    private func todoIcon(for status: ClaudeTodoItem.TodoStatus) -> String {
-        switch status {
-        case .pending:
-            return "circle"
-        case .inProgress:
-            return "circle.lefthalf.filled"
-        case .completed:
-            return "checkmark.circle.fill"
-        }
-    }
-
-    private func todoColor(for status: ClaudeTodoItem.TodoStatus) -> Color {
-        switch status {
-        case .pending:
-            return .secondary
-        case .inProgress:
-            return .orange
-        case .completed:
-            return .green
-        }
+        manager.state.model.claudeModelDisplayName
     }
 }
 
@@ -175,9 +146,7 @@ struct ContextBarWithBreakdown: View {
     let usage: TokenUsage
 
     private var barColor: Color {
-        if percentage > 80 { return .red }
-        if percentage > 60 { return .orange }
-        return .green
+        contextPercentageColor(for: percentage)
     }
 
     var body: some View {
@@ -209,19 +178,13 @@ struct ContextBarWithBreakdown: View {
 
                 Spacer()
 
-                Text("\(formatTokens(usage.totalTokens)) / 200k")
+                Text("\(usage.totalTokens.formattedTokenCount) / \(TokenUsage.contextWindow.formattedTokenCount)")
                     .font(.caption2.monospacedDigit())
                     .foregroundColor(.secondary)
             }
         }
     }
 
-    private func formatTokens(_ tokens: Int) -> String {
-        if tokens >= 1000 {
-            return "\(tokens / 1000)k"
-        }
-        return "\(tokens)"
-    }
 }
 
 struct TokenLabel: View {
@@ -237,17 +200,10 @@ struct TokenLabel: View {
             Text("\(label):")
                 .font(.caption2)
                 .foregroundColor(.secondary)
-            Text(formatValue(value))
+            Text(value.formattedTokenCount)
                 .font(.caption2.monospacedDigit())
                 .foregroundColor(.secondary)
         }
-    }
-
-    private func formatValue(_ v: Int) -> String {
-        if v >= 1000 {
-            return "\(v / 1000)k"
-        }
-        return "\(v)"
     }
 }
 

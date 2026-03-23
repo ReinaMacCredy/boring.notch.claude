@@ -14,13 +14,7 @@ struct UsageThresholdNotificationView: View {
     let effectiveClosedNotchHeight: CGFloat
 
     private var thresholdColor: Color {
-        if utilization < 50 {
-            return Color(red: 0.29, green: 0.87, blue: 0.50) // green
-        } else if utilization < 80 {
-            return Color(red: 0.98, green: 0.75, blue: 0.14) // amber
-        } else {
-            return Color(red: 0.97, green: 0.44, blue: 0.44) // red
-        }
+        TerminalColors.utilizationColor(for: utilization)
     }
 
     var body: some View {

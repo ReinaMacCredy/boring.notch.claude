@@ -56,7 +56,7 @@ struct ClaudeClosedView: View {
 
     private var isAskUserQuestion: Bool {
         sessionMonitor.instances.contains { session in
-            session.phase.isWaitingForApproval && session.pendingToolName == "AskUserQuestion"
+            session.phase.isWaitingForApproval && session.pendingToolName == ClaudeToolNames.askUserQuestion
         }
     }
 
@@ -126,7 +126,7 @@ struct ClaudeClosedView: View {
                 if displayedHasPendingPermission && !isAskUserQuestion {
                     PermissionIndicatorIcon(
                         size: 14,
-                        color: Color(red: 0.85, green: 0.47, blue: 0.34)
+                        color: TerminalColors.prompt
                     )
                 } else {
                     switch displayedIndicatorMode {
@@ -175,7 +175,7 @@ struct ClaudeClosedView: View {
         case .waitingForApproval:
             return Color(red: 1.0, green: 0.7, blue: 0.0)
         case .waitingForInput:
-            return Color(red: 0.85, green: 0.47, blue: 0.34)
+            return TerminalColors.prompt
         default:
             return .white.opacity(0.3)
         }

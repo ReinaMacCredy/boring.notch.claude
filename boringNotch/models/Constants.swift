@@ -36,9 +36,16 @@ enum HideNotchOption: String, Defaults.Serializable {
     case never
 }
 
+// MARK: - Claude Tool Names
+enum ClaudeToolNames {
+    static let askUserQuestion = "AskUserQuestion"
+    static let todoWrite = "TodoWrite"
+}
+
 // Define notification names at file scope
 extension Notification.Name {
     static let mediaControllerChanged = Notification.Name("mediaControllerChanged")
+    static let accentColorChanged = Notification.Name("AccentColorChanged")
 }
 
 // Media controller types for selection in settings

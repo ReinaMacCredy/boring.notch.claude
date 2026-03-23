@@ -80,14 +80,14 @@ struct UsageStatsView: View {
             usagePill(
                 value: usage.fiveHour.utilization,
                 label: "5h",
-                color: pillColor(for: usage.fiveHour.utilization)
+                color: TerminalColors.utilizationColor(for: usage.fiveHour.utilization)
             )
 
             // 7-day utilization
             usagePill(
                 value: usage.sevenDay.utilization,
                 label: "7d",
-                color: pillColor(for: usage.sevenDay.utilization)
+                color: TerminalColors.utilizationColor(for: usage.sevenDay.utilization)
             )
 
             // Today's token usage (from ccusage)
@@ -125,7 +125,7 @@ struct UsageStatsView: View {
 
     private func tokenPill(tokens: Int, cost: Double) -> some View {
         HStack(spacing: 4) {
-            Text(formatTokens(tokens))
+            Text(tokens.formattedTokenCount)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(.white.opacity(0.5))
 
@@ -193,29 +193,10 @@ struct UsageStatsView: View {
 
     // MARK: - Helpers
 
-    private func pillColor(for utilization: Double) -> Color {
-        if utilization < 50 {
-            return Color(red: 0.29, green: 0.87, blue: 0.50) // green #4ade80
-        } else if utilization < 80 {
-            return Color(red: 0.98, green: 0.75, blue: 0.14) // amber #fbbf24
-        } else {
-            return Color(red: 0.97, green: 0.44, blue: 0.44) // red #f87171
-        }
-    }
-
     private var nearestReset: Date? {
         let candidates = [usage.fiveHour.resetsAt, usage.sevenDay.resetsAt].compactMap { $0 }
         let future = candidates.filter { $0 > Date() }
         return future.min()
-    }
-
-    private func formatTokens(_ count: Int) -> String {
-        if count >= 1_000_000_000 {
-            return String(format: "%.1fB", Double(count) / 1_000_000_000)
-        } else if count >= 1_000_000 {
-            return String(format: "%.0fM", Double(count) / 1_000_000)
-        }
-        return String(format: "%.0fK", Double(count) / 1_000)
     }
 
     private func formatCredits(_ cents: Double) -> String {

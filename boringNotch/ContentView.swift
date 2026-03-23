@@ -88,18 +88,17 @@ struct ContentView: View {
             chinWidth = 640
         } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed
             && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView]
-            && !claudeSessionMonitor.instances.isEmpty && claudeHasVisibleActivity && !vm.hideOnClosed
+            && showsClaudeClosedView && !vm.hideOnClosed
         {
             // Claude Code (priority): expand for crab + dots (left) + spinner (right)
-            let hasActivity = claudeSessionMonitor.instances.contains {
+            // ClaudeClosedView handles activity detection internally
+            let activeSessions = claudeSessionMonitor.instances.filter {
                 $0.phase == .processing || $0.phase == .compacting ||
                 $0.phase.isWaitingForApproval || $0.phase == .waitingForInput
             }
-            if hasActivity {
-                let dotCount = CGFloat(min(claudeSessionMonitor.instances.count, 2))
-                // Left: crab(24) + dots(10 each) + spacing(8)
+            if !activeSessions.isEmpty {
+                let dotCount = CGFloat(min(activeSessions.count, 2))
                 let leftWidth: CGFloat = 24 + (dotCount * 10) + 8
-                // Right: spinner/checkmark
                 let rightWidth: CGFloat = max(0, vm.effectiveClosedNotchHeight - 12) + 10
                 chinWidth += leftWidth + rightWidth
             }
@@ -472,7 +471,7 @@ struct ContentView: View {
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
-                      } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && showsClaudeClosedView && claudeHasVisibleActivity && !vm.hideOnClosed {
+                      } else if !musicPeekActive && !coordinator.expandingView.show && vm.notchState == .closed && Defaults[.enableClaudeCode] && Defaults[.enableClaudeCodeCollapsedView] && showsClaudeClosedView && !vm.hideOnClosed {
                             ClaudeClosedView(
                                 sessionMonitor: claudeSessionMonitor,
                                 closedNotchSize: vm.closedNotchSize,

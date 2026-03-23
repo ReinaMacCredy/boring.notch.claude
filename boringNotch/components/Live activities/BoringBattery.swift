@@ -168,15 +168,11 @@ struct BatteryMenuView: View {
 
 /// A view that displays the battery status and allows interaction to show detailed information.
 struct BoringBatteryView: View {
-    
-    @State var batteryWidth: CGFloat = 26
-    var isCharging: Bool = false
-    var isInLowPowerMode: Bool = false
-    var isPluggedIn: Bool = false
-    var levelBattery: Float = 0
-    var maxCapacity: Float = 0
-    var timeToFullCharge: Int = 0
-    @State var isForNotification: Bool = false
+
+    @ObservedObject private var batteryModel = BatteryStatusViewModel.shared
+
+    var batteryWidth: CGFloat = 26
+    var isForNotification: Bool = false
     
     @State private var showPopupMenu: Bool = false
     @State private var isPressed: Bool = false
@@ -194,15 +190,15 @@ struct BoringBatteryView: View {
         }) {
             HStack {
                 if Defaults[.showBatteryPercentage] {
-                    Text("\(Int32(levelBattery))%")
+                    Text("\(Int32(batteryModel.levelBattery))%")
                         .font(.callout)
                         .foregroundStyle(.white)
                 }
                 BatteryView(
-                    levelBattery: levelBattery,
-                    isPluggedIn: isPluggedIn,
-                    isCharging: isCharging,
-                    isInLowPowerMode: isInLowPowerMode,
+                    levelBattery: batteryModel.levelBattery,
+                    isPluggedIn: batteryModel.isPluggedIn,
+                    isCharging: batteryModel.isCharging,
+                    isInLowPowerMode: batteryModel.isInLowPowerMode,
                     batteryWidth: batteryWidth,
                     isForNotification: isForNotification
                 )
@@ -213,13 +209,13 @@ struct BoringBatteryView: View {
             isPresented: $showPopupMenu,
             arrowEdge: .bottom) {
             BatteryMenuView(
-                isPluggedIn: isPluggedIn,
-                isCharging: isCharging,
-                levelBattery: levelBattery,
-                maxCapacity: maxCapacity,
-                timeToFullCharge: timeToFullCharge,
-                isInLowPowerMode: isInLowPowerMode,
-                onDismiss: { 
+                isPluggedIn: batteryModel.isPluggedIn,
+                isCharging: batteryModel.isCharging,
+                levelBattery: batteryModel.levelBattery,
+                maxCapacity: batteryModel.maxCapacity,
+                timeToFullCharge: batteryModel.timeToFullCharge,
+                isInLowPowerMode: batteryModel.isInLowPowerMode,
+                onDismiss: {
                     showPopupMenu = false
                 }
             )
@@ -254,14 +250,6 @@ struct BoringBatteryView: View {
 }
 
 #Preview {
-    BoringBatteryView(
-        batteryWidth: 30,
-        isCharging: false,
-        isInLowPowerMode: false,
-        isPluggedIn: true,
-        levelBattery: 80,
-        maxCapacity: 100,
-        timeToFullCharge: 10,
-        isForNotification: false
-    ).frame(width: 200, height: 200)
+    BoringBatteryView(batteryWidth: 30)
+        .frame(width: 200, height: 200)
 }

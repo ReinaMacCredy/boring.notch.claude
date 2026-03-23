@@ -456,14 +456,7 @@ struct ContentView: View {
                                 .frame(width: vm.closedNotchSize.width + 10)
 
                             HStack {
-                                BoringBatteryView(
-                                    batteryWidth: 30,
-                                    isCharging: batteryModel.isCharging,
-                                    isInLowPowerMode: batteryModel.isInLowPowerMode,
-                                    isPluggedIn: batteryModel.isPluggedIn,
-                                    levelBattery: batteryModel.levelBattery,
-                                    isForNotification: true
-                                )
+                                BoringBatteryView(batteryWidth: 30, isForNotification: true)
                             }
                             .frame(width: 76, alignment: .trailing)
                         }

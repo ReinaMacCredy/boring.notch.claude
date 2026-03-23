@@ -30,15 +30,18 @@ public enum NotchViews {
     case claudeCode
 }
 
-enum SettingsEnum {
-    case general
-    case about
-    case charge
-    case download
-    case mediaPlayback
-    case hud
-    case shelf
-    case extensions
+enum SettingsTab: String, CaseIterable {
+    case general = "General"
+    case appearance = "Appearance"
+    case media = "Media"
+    case calendar = "Calendar"
+    case hud = "HUD"
+    case battery = "Battery"
+    case shelf = "Shelf"
+    case shortcuts = "Shortcuts"
+    case advanced = "Advanced"
+    case claudeCode = "ClaudeCode"
+    case about = "About"
 }
 
 enum DownloadIndicatorStyle: String, Defaults.Serializable {

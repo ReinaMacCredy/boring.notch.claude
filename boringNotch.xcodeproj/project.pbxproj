@@ -119,7 +119,7 @@
 		14E9FEAE2C7325770062E83F /* Button+Bouncing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14E9FEAD2C7325770062E83F /* Button+Bouncing.swift */; };
 		14FC6E502C7DED5600C7BEA5 /* DataTypes+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14FC6E4F2C7DED5600C7BEA5 /* DataTypes+Extensions.swift */; };
 		0358679FFD75D81FC837153F /* Array+SafeSubscript.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3F60237A63A4784B3C7411 /* Array+SafeSubscript.swift */; };
-		1713CF07D685C2C74141232B /* ActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D954B352E8954CFB251B9F3E /* ActionButton.swift */; };
+		1713CF07D685C2C74141232B /* DenyAllowButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D954B352E8954CFB251B9F3E /* DenyAllowButton.swift */; };
 		1BAC2BF51C847698149700E1 /* StatusIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = D82D951C0062E294B10875E6 /* StatusIcons.swift */; };
 		226835B43778309665829A0A /* SessionPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC5569EB25AA3E66AAF3AE4E /* SessionPhase.swift */; };
 		28AD5BF9A546B7397F6B4B4E /* ToolResultViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B395F62180D7B86605E682D /* ToolResultViews.swift */; };
@@ -434,7 +434,7 @@
 		D020A3479D506C0CF12808F5 /* ClaudeClosedView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeClosedView.swift; sourceTree = "<group>"; };
 		D157E8CB9FDEFC524DC31456 /* ChatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		D82D951C0062E294B10875E6 /* StatusIcons.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StatusIcons.swift; sourceTree = "<group>"; };
-		D954B352E8954CFB251B9F3E /* ActionButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActionButton.swift; sourceTree = "<group>"; };
+		D954B352E8954CFB251B9F3E /* DenyAllowButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DenyAllowButton.swift; sourceTree = "<group>"; };
 		BBB411292F0816B90007988A /* ClaudeCodeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeModels.swift; sourceTree = "<group>"; };
 		BBB4112B2F0816D40007988A /* ClaudeCodeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeManager.swift; sourceTree = "<group>"; };
 		BBB4112F2F0817830007988A /* ClaudeCodeCompactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeCompactView.swift; sourceTree = "<group>"; };
@@ -1038,7 +1038,7 @@
 				D82D951C0062E294B10875E6 /* StatusIcons.swift */,
 				3C6D08F821C8122249FC82EC /* TerminalColors.swift */,
 				C233C5678EA92DBF9F394DAA /* MarkdownRenderer.swift */,
-				D954B352E8954CFB251B9F3E /* ActionButton.swift */,
+				D954B352E8954CFB251B9F3E /* DenyAllowButton.swift */,
 				554F35214BDA3AEE3E0DF038 /* ClaudeCrabIcon.swift */,
 				61A5D5A4A8320CF9C8BB28F0 /* ClaudeInstancesView.swift */,
 				D157E8CB9FDEFC524DC31456 /* ChatView.swift */,
@@ -1419,7 +1419,7 @@
 				1BAC2BF51C847698149700E1 /* StatusIcons.swift in Sources */,
 				6DA1B4A94CB99CEA5D7A6B1A /* TerminalColors.swift in Sources */,
 				9AC28CCABDDFB85A172B438B /* MarkdownRenderer.swift in Sources */,
-				1713CF07D685C2C74141232B /* ActionButton.swift in Sources */,
+				1713CF07D685C2C74141232B /* DenyAllowButton.swift in Sources */,
 				65E606121AC87DB687A4A9A6 /* ClaudeCrabIcon.swift in Sources */,
 				5C98E0A0F8F1474EB3131369 /* ClaudeInstancesView.swift in Sources */,
 				DC75B84BD44EE89B44AF5EE7 /* ChatView.swift in Sources */,

@@ -32,47 +32,12 @@ class ClaudeSessionMonitor: ObservableObject {
     // MARK: - Monitoring Lifecycle
 
     func startMonitoring() {
-        HookSocketServer.shared.start(
-            onEvent: { event in
-                Task {
-                    await SessionStore.shared.process(.hookReceived(event))
-                }
-
-                if event.sessionPhase == .processing {
-                    Task { @MainActor in
-                        InterruptWatcherManager.shared.startWatching(
-                            sessionId: event.sessionId,
-                            cwd: event.cwd
-                        )
-                    }
-                }
-
-                if event.status == "ended" {
-                    Task { @MainActor in
-                        InterruptWatcherManager.shared.stopWatching(sessionId: event.sessionId)
-                    }
-                }
-
-                if event.event == "Stop" {
-                    HookSocketServer.shared.cancelPendingPermissions(sessionId: event.sessionId)
-                }
-
-                if event.event == "PostToolUse", let toolUseId = event.toolUseId {
-                    HookSocketServer.shared.cancelPendingPermission(toolUseId: toolUseId)
-                }
-            },
-            onPermissionFailure: { sessionId, toolUseId in
-                Task {
-                    await SessionStore.shared.process(
-                        .permissionSocketFailed(sessionId: sessionId, toolUseId: toolUseId)
-                    )
-                }
-            }
-        )
+        // HookSocketServer is started by AppDelegate at launch.
+        // This method is retained for any future non-server monitoring setup.
     }
 
     func stopMonitoring() {
-        HookSocketServer.shared.stop()
+        // HookSocketServer lifecycle is managed by AppDelegate.
     }
 
     // MARK: - Permission Handling

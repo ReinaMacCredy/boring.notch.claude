@@ -199,34 +199,16 @@ struct PermissionBannerView: View {
 
     @ViewBuilder
     private func denyButton(session: SessionState) -> some View {
-        Button {
+        DenyAllowButton(role: .deny, label: "Deny") {
             sessionMonitor.denyPermission(sessionId: session.sessionId, reason: nil)
-        } label: {
-            Text("Deny")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.white.opacity(0.5))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color.white.opacity(0.08))
-                .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
     private func allowButton(session: SessionState) -> some View {
-        Button {
+        DenyAllowButton(role: .allow, label: "Allow") {
             sessionMonitor.approvePermission(sessionId: session.sessionId)
-        } label: {
-            Text("Allow")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.black)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color.white.opacity(0.85))
-                .clipShape(Capsule())
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder

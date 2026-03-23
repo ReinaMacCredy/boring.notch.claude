@@ -14,6 +14,7 @@ import SwiftUI
 private final class DocumentCache: @unchecked Sendable {
     static let shared = DocumentCache()
     private var cache: [String: Document] = [:]
+    private var insertionOrder: [String] = []
     private let lock = NSLock()
     private let maxSize = 100
 
@@ -27,9 +28,11 @@ private final class DocumentCache: @unchecked Sendable {
         // Enable strikethrough and other extended syntax
         let doc = Document(parsing: text, options: [.parseBlockDirectives, .parseSymbolLinks])
         if cache.count >= maxSize {
-            cache.removeAll()
+            let evicted = insertionOrder.removeFirst()
+            cache.removeValue(forKey: evicted)
         }
         cache[text] = doc
+        insertionOrder.append(text)
         return doc
     }
 }

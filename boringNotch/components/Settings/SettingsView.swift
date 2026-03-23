@@ -15,7 +15,7 @@ import SwiftUI
 import SwiftUIIntrospect
 
 struct SettingsView: View {
-    @State private var selectedTab = "General"
+    @State private var selectedTab: SettingsTab = .general
     @State private var accentColorUpdateTrigger = UUID()
 
     let updaterController: SPUStandardUpdaterController?
@@ -27,43 +27,37 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedTab) {
-                NavigationLink(value: "General") {
+                NavigationLink(value: SettingsTab.general) {
                     Label("General", systemImage: "gear")
                 }
-                NavigationLink(value: "Appearance") {
+                NavigationLink(value: SettingsTab.appearance) {
                     Label("Appearance", systemImage: "eye")
                 }
-                NavigationLink(value: "Media") {
+                NavigationLink(value: SettingsTab.media) {
                     Label("Media", systemImage: "play.laptopcomputer")
                 }
-                NavigationLink(value: "Calendar") {
+                NavigationLink(value: SettingsTab.calendar) {
                     Label("Calendar", systemImage: "calendar")
                 }
-                NavigationLink(value: "HUD") {
+                NavigationLink(value: SettingsTab.hud) {
                     Label("HUDs", systemImage: "dial.medium.fill")
                 }
-                NavigationLink(value: "Battery") {
+                NavigationLink(value: SettingsTab.battery) {
                     Label("Battery", systemImage: "battery.100.bolt")
                 }
-//                NavigationLink(value: "Downloads") {
-//                    Label("Downloads", systemImage: "square.and.arrow.down")
-//                }
-                NavigationLink(value: "Shelf") {
+                NavigationLink(value: SettingsTab.shelf) {
                     Label("Shelf", systemImage: "books.vertical")
                 }
-                NavigationLink(value: "Shortcuts") {
+                NavigationLink(value: SettingsTab.shortcuts) {
                     Label("Shortcuts", systemImage: "keyboard")
                 }
-                // NavigationLink(value: "Extensions") {
-                //     Label("Extensions", systemImage: "puzzlepiece.extension")
-                // }
-                NavigationLink(value: "Advanced") {
+                NavigationLink(value: SettingsTab.advanced) {
                     Label("Advanced", systemImage: "gearshape.2")
                 }
-                NavigationLink(value: "ClaudeCode") {
+                NavigationLink(value: SettingsTab.claudeCode) {
                     Label("Claude Code", systemImage: "terminal")
                 }
-                NavigationLink(value: "About") {
+                NavigationLink(value: SettingsTab.about) {
                     Label("About", systemImage: "info.circle")
                 }
             }
@@ -74,27 +68,27 @@ struct SettingsView: View {
         } detail: {
             Group {
                 switch selectedTab {
-                case "General":
+                case .general:
                     GeneralSettings()
-                case "Appearance":
+                case .appearance:
                     Appearance()
-                case "Media":
+                case .media:
                     Media()
-                case "Calendar":
+                case .calendar:
                     CalendarSettings()
-                case "HUD":
+                case .hud:
                     HUD()
-                case "Battery":
+                case .battery:
                     Charge()
-                case "Shelf":
+                case .shelf:
                     Shelf()
-                case "ClaudeCode":
+                case .claudeCode:
                     ClaudeCodeSettings()
-                case "Shortcuts":
+                case .shortcuts:
                     Shortcuts()
-                case "Advanced":
+                case .advanced:
                     Advanced()
-                case "About":
+                case .about:
                     if let controller = updaterController {
                         About(updaterController: controller)
                     } else {
@@ -104,8 +98,6 @@ struct SettingsView: View {
                                 startingUpdater: false, updaterDelegate: nil,
                                 userDriverDelegate: nil))
                     }
-                default:
-                    GeneralSettings()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1106,7 +1098,7 @@ struct ClaudeCodeSettings: View {
         .accentColor(.effectiveAccent)
         .navigationTitle("Claude Code")
         .onAppear {
-            sessionMonitor.startMonitoring()
+            // Server started by AppDelegate; no per-view setup needed.
         }
     }
 
